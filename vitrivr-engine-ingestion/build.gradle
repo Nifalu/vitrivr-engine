@@ -1,0 +1,25 @@
+plugins {
+    id 'java'
+}
+
+group = 'org.vitrivr'
+version = '0.0.1'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api project(':vitrivr-engine-core')
+    api project(':vitrivr-engine-server')
+    api project(':vitrivr-engine-module-cottontaildb')
+
+    implementation group: 'org.vitrivr', name: 'cottontaildb-client', version: version_cottontaildb
+
+    implementation group: 'io.grpc', name: 'grpc-all', version: version_grpc
+    implementation group: 'com.google.protobuf', name: 'protobuf-java', version: version_protobuf
+}
+
+test {
+    useJUnitPlatform()
+}
