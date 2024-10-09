@@ -18,6 +18,7 @@ import org.vitrivr.cottontail.client.language.dml.Update
 
 
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.types.Types
 import org.vitrivr.cottontail.core.values.UuidValue
 //import org.vitrivr.cottontail.utilities.VectorUtility
@@ -38,43 +39,7 @@ object ExamplesSimple {
     /** Cottontail DB [SimpleClient] for all database operations. */
     private val client = SimpleClient(channel)
 
-    /** Name of the Cottontail DB Schema. */
-    private val schemaName = "cottontail_example"
 
-    /** Name of the Cottontail DB Schema and dimension of its vector column. */
-    val entities = arrayOf(
-        "scalablecolor" to 64,
-        "cedd" to 144,
-        "jhist" to 576
-    )
-
-    /**
-     * Creates a Cottontail DB schema named "cottontail_example" using the DDL Stub.
-     */
-    fun initializeSchema() {
-        this.client.create(CreateSchema(schemaName))
-        println("Schema $schemaName created successfully.")
-    }
-
-    /**
-     * Drops a Cottontail DB schema named "cottontail_example" and all entities it contains using the DDL Stub.
-     */
-    fun dropSchema() {
-        client.drop(DropSchema(schemaName))
-        println("Schema $schemaName dropped successfully.")
-    }
-
-    /**
-     * Creates three entities using the DDL Stub.
-     */
-    fun initializeEntities() = entities.forEach {
-        this.client.create(
-            CreateEntity("${this.schemaName}.${it.first}")
-                .column(Name.ColumnName.create("id"), Types.String, nullable = false)
-                .column(Name.ColumnName.create("feature"), Types.FloatVector(it.second), nullable = false)
-        )
-        println("Entity $schemaName.${it.first} created successfully.")
-    }
 /*
     /**
      * Imports the example data contained in the resource bundle of the project.
@@ -104,55 +69,46 @@ object ExamplesSimple {
     }
     */
 
-    /**
-     * Select and display top 3 entries in each entity.
-     */
-    fun executeSimpleSelect() {
+    //TODO - Add a way to read from a file and update the metadata accordingly
+    fun updateMetaData(updates: List<Triple<String, String, Pair<String, String>>>) {
+        updates.forEach { u ->
+            updateField(u.first, u.second, u.third)
+        }
+    }
+
+    fun updateMetaData(entity: String, column: String, value: String, limit: Long = 3) {
+
         /* Prepare query. */
-        val query = Query("xreco.descriptor_description").select("*").limit(1)
+        val query = Query(entity).select("*").limit(limit)
 
         /* Execute query. */
         val results = this.client.query(query)
 
-        /* Print results. */
-        println("Results of query for entity 'descriptor_description':")
-        results.forEach { t ->  t.values().forEach{ e -> println(e)} }
+        results.forEach { r ->
+            val id = r.values().first().toString()
+            updateField(entity, column, id to value)
+        }
     }
 
-    fun updateField() {
-        /* Prepare query. */
+    private fun updateField(entity: String, column: String, value: Pair<String, String>) {
 
+        /* prepare compare */
         val compare = Compare(
             Column("descriptorid"),
             Compare.Operator.EQUAL,
             Literal(
-                UuidValue("0ee8c9f5-751d-4cc5-b3ff-dea09fb31999")
+                UuidValue(value.first)
             )
         )
 
-        val update = Update("xreco.descriptor_description")
+        /* Prepare update. */
+        val update = Update(entity)
             .where(compare)
-            .any("description" to "Hello World")
+            .any(column to value.second)
 
         /* Execute query. */
-        val results = this.client.update(update)
+        this.client.update(update)
     }
-/*
-    /**
-     * Select one entry per entity based on a WHERE-clause.
-     */
-    fun executeSelectWithWhere() = entities.forEach {
-        /* Prepare query. */
-        val query = Query("${this.schemaName}.${it.first}").select("*").where(Literal("id", "IN", "fca0132f519e71d13fb82b86964872", "0b414f0e6e82cd0aefae3d2bd791b2", "0f412c5bd41f9b91d8635bb1a886a36"))
-
-        /* Execute query. */
-        val results = this.client.query(query)
-
-        /* Print results. */
-        println("Results of query for entity '${it.first}':")
-        results.forEach { t -> println(t) }
-    }
- */
 }
 
 
@@ -160,20 +116,9 @@ object ExamplesSimple {
  * Entry point for example program.
  */
 fun main() {
-    //ExamplesSimple.initializeSchema() /* Initialize empty schema ''. */
 
-    //ExamplesSimple.initializeEntities() /* Initialize empty entities. */
-
-    //ExamplesSimple.importData() /* Import example data from resource bundle. */
-    println("Executing simple select")
-    ExamplesSimple.executeSimpleSelect() /* Execute simple SELECT statement with LIMIT. */
-    println("Executing update")
-    ExamplesSimple.updateField()
-    println("Executing simple select")
-    ExamplesSimple.executeSimpleSelect()
-
-    //ExamplesSimple.executeSelectWithWhere() /* Execute simple SELECT statement with WHERE-clause. */
-
-    //ExamplesSimple.executeNearestNeighbourQuery() /* Execute kNN query. */
+    println("Let's go!!")
+    ExamplesSimple.updateMetaData("xreco.descriptor_description", "user", "HARAMBE" ,100) /* Execute simple SELECT statement with LIMIT. */
+    println("Done!!")
 
 }
