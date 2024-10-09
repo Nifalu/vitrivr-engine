@@ -4,15 +4,22 @@ import io.grpc.ManagedChannelBuilder
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.Distances
+import org.vitrivr.cottontail.client.language.basics.expression.Column
+import org.vitrivr.cottontail.client.language.basics.expression.Literal
+import org.vitrivr.cottontail.client.language.basics.predicate.Compare
+import org.vitrivr.cottontail.client.language.basics.predicate.Predicate
 
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity
 import org.vitrivr.cottontail.client.language.ddl.CreateSchema
 import org.vitrivr.cottontail.client.language.ddl.DropSchema
 import org.vitrivr.cottontail.client.language.dml.Insert
 import org.vitrivr.cottontail.client.language.dql.Query
+import org.vitrivr.cottontail.client.language.dml.Update
+
 
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.types.Types
+import org.vitrivr.cottontail.core.values.UuidValue
 //import org.vitrivr.cottontail.utilities.VectorUtility
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -102,7 +109,7 @@ object ExamplesSimple {
      */
     fun executeSimpleSelect() {
         /* Prepare query. */
-        val query = Query("xreco.descriptor_description").select("*").limit(3)
+        val query = Query("xreco.descriptor_description").select("*").limit(1)
 
         /* Execute query. */
         val results = this.client.query(query)
@@ -110,6 +117,25 @@ object ExamplesSimple {
         /* Print results. */
         println("Results of query for entity 'descriptor_description':")
         results.forEach { t ->  t.values().forEach{ e -> println(e)} }
+    }
+
+    fun updateField() {
+        /* Prepare query. */
+
+        val compare = Compare(
+            Column("descriptorid"),
+            Compare.Operator.EQUAL,
+            Literal(
+                UuidValue("0ee8c9f5-751d-4cc5-b3ff-dea09fb31999")
+            )
+        )
+
+        val update = Update("xreco.descriptor_description")
+            .where(compare)
+            .any("description" to "Hello World")
+
+        /* Execute query. */
+        val results = this.client.update(update)
     }
 /*
     /**
@@ -139,8 +165,12 @@ fun main() {
     //ExamplesSimple.initializeEntities() /* Initialize empty entities. */
 
     //ExamplesSimple.importData() /* Import example data from resource bundle. */
-
+    println("Executing simple select")
     ExamplesSimple.executeSimpleSelect() /* Execute simple SELECT statement with LIMIT. */
+    println("Executing update")
+    ExamplesSimple.updateField()
+    println("Executing simple select")
+    ExamplesSimple.executeSimpleSelect()
 
     //ExamplesSimple.executeSelectWithWhere() /* Execute simple SELECT statement with WHERE-clause. */
 
