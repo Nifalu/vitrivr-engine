@@ -6,17 +6,32 @@ import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.google.gson.stream.JsonWriter
 import com.jakewharton.picnic.table
 import io.github.oshai.kotlinlogging.KLogger
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.javalin.plugin.bundled.RouteOverviewUtil.metaInfo
 import org.vitrivr.engine.core.config.ingest.IngestionConfig
 import org.vitrivr.engine.core.config.ingest.IngestionPipelineBuilder
 import org.vitrivr.engine.core.config.pipeline.execution.ExecutionServer
 import org.vitrivr.engine.core.database.Initializer
 import org.vitrivr.engine.core.model.metamodel.Schema
+import org.vitrivr.engine.core.model.retrievable.Retrievable
+import org.vitrivr.engine.core.model.retrievable.RetrievableId
+import org.vitrivr.engine.core.model.retrievable.Retrieved
+import org.vitrivr.engine.core.model.types.Type
+import org.vitrivr.engine.query.model.api.input.RetrievableIdInputData
+import org.vitrivr.engine.server.api.cli.commands.SchemaCommand.DatabaseMigrationUtils.exportToJson
+import org.vitrivr.engine.server.api.cli.commands.SchemaCommand.DatabaseMigrationUtils.importFromJson
+import java.io.File
+import java.io.FileWriter
+import java.io.IOException
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.*
+import kotlin.io.path.pathString
 
 /**
  *
@@ -37,7 +52,9 @@ class SchemaCommand(private val schema: Schema, private val server: ExecutionSer
             About(),
             Initialize(),
             Extract(this.schema, this.server),
-            Status(this.schema, this.server)
+            Status(this.schema, this.server),
+            ExportJson(this.schema, this.server),
+            ImportJson(this.schema, this.server)
         )
     }
 
@@ -164,6 +181,76 @@ class SchemaCommand(private val schema: Schema, private val server: ExecutionSer
 
         override fun run() {
             logger.info { "Status: ${executor.status(jobId)} at ${System.currentTimeMillis()}" }
+        }
+    }
+
+    inner class ExportJson(private val schema: Schema, private val executor: ExecutionServer) :
+        CliktCommand(name = "exportjson", help = "Export all data from the schema.") {
+
+        private val logger = KotlinLogging.logger {}
+
+        /** Path to the output directory. */
+        private val output: Path? by option(
+            "-p",
+            "--path",
+            help = "Path to the output directory."
+        ).convert{ Paths.get(it) }
+
+        override fun run() {
+
+            /* Get the reader for the current connection. */
+            val reader = this.schema.connection.getRetrievableReader()
+
+            exportToJson(reader.getAll(), output?.pathString ?: "retrievables.json")
+            logger.info { "Export complete" }
+        }
+
+    }
+
+    inner class ImportJson(private val schema: Schema, private val executor: ExecutionServer) :
+        CliktCommand(name = "importjson", help = "Import all data from the schema.") {
+
+            private val logger = KotlinLogging.logger {}
+
+            private val input: Path? by option(
+                "-p",
+                "--path",
+                help = "Path of the json file."
+            ).convert{ Paths.get(it) }
+
+
+            override fun run() {
+
+                /* Get the writer for the current connection. */
+                val writer = this.schema.connection.getRetrievableWriter()
+
+                val retrievables = importFromJson(input?.pathString ?: "retrievables.json")
+
+                val retrievableList = retrievables.map { Retrieved(it.id, it.type, false) }
+
+                writer.addAll(retrievableList)
+
+                logger.info { "Import complete" }
+
+            }
+    }
+    data class RetrievableData (
+        val id : RetrievableId,
+        val type: String?
+    )
+
+    object DatabaseMigrationUtils {
+        private val gson = Gson()
+
+        fun exportToJson(retrievables: Sequence<Retrievable>, filePath: String) {
+            val retrievableList = retrievables.map { RetrievableData(it.id, it.type) }.toList()
+            File(filePath).writeText(gson.toJson(retrievableList))
+        }
+
+        fun importFromJson(filePath: String): List<RetrievableData> {
+            val jsonString = File(filePath).readText()
+            val listType = object : TypeToken<List<RetrievableData>>() {}.type
+            return gson.fromJson(jsonString, listType)
         }
     }
 }
