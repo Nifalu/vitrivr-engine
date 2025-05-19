@@ -14,3 +14,5 @@ include 'vitrivr-engine-module-features'
 include 'vitrivr-engine-module-m3d'
 include 'vitrivr-engine-module-fes'
 include 'vitrivr-engine-module-torchserve'
+include 'vitrivr-engine-module-weaviate'
+
