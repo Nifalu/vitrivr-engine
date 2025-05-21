@@ -7,10 +7,8 @@ import io.weaviate.client.v1.schema.model.Property
 import org.vitrivr.engine.core.database.retrievable.RetrievableWriter
 import org.vitrivr.engine.core.model.relationship.Relationship
 import org.vitrivr.engine.core.model.retrievable.Retrievable
+import org.vitrivr.engine.database.weaviate.*
 import org.vitrivr.engine.database.weaviate.LOGGER
-import org.vitrivr.engine.database.weaviate.RETRIEVABLE_ENTITY_NAME
-import org.vitrivr.engine.database.weaviate.RETRIEVABLE_TYPE_PROPERTY_NAME
-import org.vitrivr.engine.database.weaviate.WeaviateConnection
 
 internal class WeaviateRetrievableWriter(override val connection: WeaviateConnection) : RetrievableWriter {
 
@@ -23,10 +21,11 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
      */
     override fun connect(relationship: Relationship): Boolean {
         /* Check if the predicate already exists as property*/
+        val predicate = relationship.predicate.firstLowerCase()
         val result = connection.client.data().referenceCreator()
             .withClassName(RETRIEVABLE_ENTITY_NAME)
             .withID(relationship.subjectId.toString())
-            .withReferenceProperty(relationship.predicate)
+            .withReferenceProperty(predicate)
             .withReference(
                 connection.client.data().referencePayloadBuilder()
                     .withClassName(RETRIEVABLE_ENTITY_NAME)
@@ -42,11 +41,11 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
         /* if the reference property (predicate) was never seen before, the above will fail.
         * we need to create the reference property first. This is kinda ugly, but more efficient
         * than checking for existence every time again */
-        if (result.error.messages.any() {it.message.contains(relationship.predicate)}) {
-            LOGGER.info() { "Creating new reference property ${relationship.predicate} for collection $RETRIEVABLE_ENTITY_NAME" }
+        if (result.error.messages.any() {it.message.contains(predicate)}) {
+            LOGGER.info() { "Creating new reference property $predicate for collection $RETRIEVABLE_ENTITY_NAME" }
             val property = Property.builder()
-                .name(relationship.predicate)
-                .description("Reference property for ${relationship.predicate}")
+                .name(predicate)
+                .description("Reference property for $predicate")
                 .dataType(listOf(RETRIEVABLE_ENTITY_NAME))
                 .build()
 
@@ -57,7 +56,7 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
                 .run()
 
             if (propertyResult.hasErrors()) {
-                LOGGER.error { "Failed to create reference property ${relationship.predicate} for collection $RETRIEVABLE_ENTITY_NAME due to error.\n" +
+                LOGGER.error { "Failed to create reference property $predicate for collection $RETRIEVABLE_ENTITY_NAME due to error.\n" +
                         propertyResult.error }
                 return false
             }
@@ -66,7 +65,7 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
             val retryResult = connection.client.data().referenceCreator()
                 .withClassName(RETRIEVABLE_ENTITY_NAME)
                 .withID(relationship.subjectId.toString())
-                .withReferenceProperty(relationship.predicate)
+                .withReferenceProperty(predicate)
                 .withReference(
                     connection.client.data().referencePayloadBuilder()
                         .withClassName(RETRIEVABLE_ENTITY_NAME)
@@ -76,12 +75,12 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
                 .run()
 
             if (retryResult.hasErrors()) {
-                LOGGER.error { "Failed to insert relationship ${relationship.subjectId} -(${relationship.predicate}-> ${relationship.objectId} due to error.\n" +
+                LOGGER.error { "Failed to insert relationship ${relationship.subjectId} -($predicate-> ${relationship.objectId} due to error.\n" +
                         result.error }
                 return false
             }
         } else {
-            LOGGER.error { "Failed to insert relationship ${relationship.subjectId} -(${relationship.predicate}-> ${relationship.objectId} due to error.\n" +
+            LOGGER.error { "Failed to insert relationship ${relationship.subjectId} -($predicate-> ${relationship.objectId} due to error.\n" +
                     result.error }
             return false
         }
@@ -102,8 +101,9 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
         "Adding ${relationships.count()} relationships individually to Weaviate."}
 
         relationships.forEach {
+            val predicate = it.predicate.firstLowerCase()
             if (!connect(it)) {
-                LOGGER.error { "Failed to insert relationship ${it.subjectId} -(${it.predicate}-> ${it.objectId} due to error." }
+                LOGGER.error { "Failed to insert relationship ${it.subjectId} -> $predicate -> ${it.objectId} due to error." }
                 return false
             }
         }
@@ -117,10 +117,11 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
      * @param relationship The [Relationship] to disconnect.
      */
     override fun disconnect(relationship: Relationship): Boolean {
+        val predicate = relationship.predicate.firstLowerCase()
         val result = connection.client.data().referenceDeleter()
             .withClassName(RETRIEVABLE_ENTITY_NAME)
             .withID(relationship.subjectId.toString())
-            .withReferenceProperty(relationship.predicate)
+            .withReferenceProperty(predicate)
             .withReference(
                 connection.client.data().referencePayloadBuilder()
                     .withClassName(RETRIEVABLE_ENTITY_NAME)
@@ -129,7 +130,7 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
             )
             .run()
         if (result.hasErrors()) {
-            LOGGER.error { "Failed to delete relationship ${relationship.subjectId} -(${relationship.predicate}-> ${relationship.objectId} due to error." +
+            LOGGER.error { "Failed to delete relationship ${relationship.subjectId} -> $predicate -> ${relationship.objectId} due to error." +
                     result.error }
             return false
         }
@@ -147,7 +148,8 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
     override fun disconnectAll(relationships: Iterable<Relationship>): Boolean {
         relationships.forEach {
             if (!disconnect(it)) {
-                LOGGER.error { "Failed to delete relationship ${it.subjectId} -(${it.predicate}-> ${it.objectId} due to error." }
+                val predicate = it.predicate.firstLowerCase()
+                LOGGER.error { "Failed to delete relationship ${it.subjectId} -> $predicate -> ${it.objectId} due to error." }
                 return false
             }
         }
@@ -234,7 +236,7 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
         return true
     }
 
-    
+
     /**
      * Deletes a [Retrievable] from Weaviate.
      *
