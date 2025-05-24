@@ -1,10 +1,35 @@
 package org.vitrivr.engine.database.weaviate
+import org.vitrivr.engine.core.model.descriptor.Descriptor
+import org.vitrivr.engine.core.model.descriptor.scalar.*
+import org.vitrivr.engine.core.model.metamodel.Schema
 
 import io.weaviate.client.WeaviateClient
 import io.weaviate.client.v1.data.model.WeaviateObject
 import io.weaviate.client.v1.graphql.model.GraphQLResponse
 import io.weaviate.client.base.Result
+import io.weaviate.client.v1.filters.Operator
+import org.vitrivr.engine.core.model.query.basics.ComparisonOperator
+import org.vitrivr.engine.database.weaviate.properties.AbstractDescriptorProperty
+import org.vitrivr.engine.database.weaviate.properties.scalar.BooleanDescriptorProperty
 
+
+@Suppress("UNCHECKED_CAST")
+internal fun <D: Descriptor<*>> Schema.Field<*, D>.toDescriptorProperty() = when (this.analyser.prototype(this)) {
+    is BooleanDescriptor -> BooleanDescriptorProperty(this as Schema.Field<*, BooleanDescriptor>, this.connection as WeaviateConnection)
+    /*
+    is ByteDescriptor -> ByteProperty(this as Schema.Field<*, ByteDescriptor>, this.connection as WeaviateConnection)
+    is DoubleDescriptor -> DoubleProperty(this as Schema.Field<*, DoubleDescriptor>, this.connection as WeaviateConnection)
+    is FloatDescriptor -> FloatProperty(this as Schema.Field<*, FloatDescriptor>, this.connection as WeaviateConnection)
+    is IntDescriptor -> IntProperty(this as Schema.Field<*, IntDescriptor>, this.connection as WeaviateConnection)
+    is LongDescriptor -> LongProperty(this as Schema.Field<*, LongDescriptor>, this.connection as WeaviateConnection)
+    is ShortDescriptor -> ShortProperty(this as Schema.Field<*, ShortDescriptor>, this.connection as WeaviateConnection)
+    is StringDescriptor -> StringProperty(this as Schema.Field<*, StringDescriptor>, this.connection as WeaviateConnection)
+    is TextDescriptor -> TextProperty(this as Schema.Field<*, TextDescriptor>, this.connection as WeaviateConnection)
+    is FloatVectorDescriptor -> VectorProperty(this as Schema.Field<*, FloatVectorDescriptor>, this.connection as WeaviateConnection)
+    is StructDescriptor<*> -> StructDescriptorTable(this as Schema.Field<*, StructDescriptor<*>>, this.connection as WeaviateConnection)
+     */
+    else -> throw IllegalArgumentException("Unsupported descriptor type: ${this.analyser.prototype(this)}")
+} as AbstractDescriptorProperty<D>
 
 /**
  * Extension function that converts a [Result] of type [GraphQLResponse] to a sequence of [WeaviateObject].
@@ -39,40 +64,24 @@ internal fun <T>  Result<GraphQLResponse<T>?>.toWeaviateObject(): Sequence<Weavi
         return null
     }
 
-    val result = mutableListOf<WeaviateObject>()
 
-    /* Parse the retrievables */
-    for (item in retrievables) {
-        val contents = item as? Map<*, *>
-        if (contents == null) {
-            warn(item.toString())
-            continue
-        }
-        /* the item id as well as the named vectors are stored in '_additional' */
-        val additional = contents["_additional"] as? Map<*,*>
-        if (additional == null) {
-            warn(item.toString())
-            continue
-        }
+    return retrievables.asSequence().mapNotNull { item ->
+        val contents = item as? Map<*, *> ?: return@mapNotNull warnAndSkip(item)
+        val additional = contents["_additional"] as? Map<*,*> ?: return@mapNotNull warnAndSkip(item)
+        val id = additional["id"] as? String ?: return@mapNotNull warnAndSkip(item)
 
-        val id = additional["id"] as? String
-        if (id == null) {
-            warn(item.toString())
-            continue
-        }
-
-        /* Is type safe parsing always this ugly? */
+        /* If the object has namedVectors extract them, otherwise just take an emptyMap */
         val vectorList = additional["vectors"] as? Map<*,*>
         val vectors: Map<String, Array<Float>> =
             vectorList?.filterValues { it != null }?.mapKeys { it.key.toString() }?.mapValues { (_, value) ->
-            (value as List<*>).map {
-                when (it) {
-                    is Float -> it
-                    is Number -> it.toFloat()
-                    else -> throw IllegalArgumentException("Invalid element type: ${it?.javaClass} within vector")
-                }
-            }.toTypedArray() }
-            ?: emptyMap()
+                (value as List<*>).map {
+                    when (it) {
+                        is Float -> it
+                        is Number -> it.toFloat()
+                        else -> throw IllegalArgumentException("Invalid element type: ${it?.javaClass} within vector")
+                    }
+                }.toTypedArray() }
+                ?: emptyMap()
 
         /* other properties are right in the item map*/
         val properties = item
@@ -81,26 +90,19 @@ internal fun <T>  Result<GraphQLResponse<T>?>.toWeaviateObject(): Sequence<Weavi
             .mapKeys { it.key.toString() }
             .mapValues { it.value as Any }
 
-        result.add(WeaviateObject.builder()
+        WeaviateObject.builder()
             .className(RETRIEVABLE_ENTITY_NAME)
             .id(id)
             .properties(properties)
             .vectors(vectors)
             .build()
-        )
     }
-    return result.asSequence()
 }
 
-/**
- * Small helper function that logs a warning message.
- *
- * If this function is called, the format of the GraphQLResponse probably changed.
- *
- * @param msg The message to log.
- */
-private fun warn(msg: String) {
-    LOGGER.warn { "GraphQLResponse Parser found an unexpected input: $msg"}
+
+private fun warnAndSkip(item: Any?): Nothing? {
+    LOGGER.warn { "GraphQLResponse Parser found an unexpected item: ${item.toString()}" }
+    return null
 }
 
 internal fun WeaviateClient.findPredicateProperties(): List<String> {
@@ -113,9 +115,20 @@ internal fun WeaviateClient.findPredicateProperties(): List<String> {
         return result.result.properties
             .filter { it.dataType.contains(RETRIEVABLE_ENTITY_NAME) }
             .map { it.name }
-
     }
 }
+
+internal fun ComparisonOperator.toWeaviateOperator(): String = when (this) {
+    ComparisonOperator.EQ -> Operator.Equal
+    ComparisonOperator.NEQ -> Operator.NotEqual
+    ComparisonOperator.GEQ -> Operator.GreaterThanEqual
+    ComparisonOperator.GR -> Operator.GreaterThan
+    ComparisonOperator.LEQ -> Operator.LessThanEqual
+    ComparisonOperator.LE -> Operator.LessThan
+    ComparisonOperator.LIKE -> Operator.Like
+    else -> throw IllegalArgumentException("Unsupported comparison operator: $this")
+}
+
 
 /**
  * Extension function that ensures the first character of a string is lowercase.
@@ -125,15 +138,5 @@ internal fun String.firstLowerCase(): String {
         return this
     }
     return this[0].lowercaseChar() + this.substring(1)
-}
-
-/**
- * Extension function that ensures the first character of a string is uppercase.
- */
-internal fun String.firstUpperCase(): String {
-    if (this.isEmpty()) {
-        return this
-    }
-    return this[0].uppercaseChar() + this.substring(1)
 }
 

@@ -41,8 +41,8 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
         /* if the reference property (predicate) was never seen before, the above will fail.
         * we need to create the reference property first. This is kinda ugly, but more efficient
         * than checking for existence every time again */
-        if (result.error.messages.any() {it.message.contains(predicate)}) {
-            LOGGER.info() { "Creating new reference property $predicate for collection $RETRIEVABLE_ENTITY_NAME" }
+        if (result.error.messages.any {it.message.contains(predicate)}) {
+            LOGGER.info { "Creating new reference property $predicate for collection $RETRIEVABLE_ENTITY_NAME" }
             val property = Property.builder()
                 .name(predicate)
                 .description("Reference property for $predicate")
@@ -97,7 +97,7 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
      */
     override fun connectAll(relationships: Iterable<Relationship>): Boolean {
 
-        LOGGER.warn() {" !! There is no useful batcher for weaviate references yet. This might be slow !!" +
+        LOGGER.warn {" !! There is no useful batcher for weaviate references yet. This might be slow !!" +
         "Adding ${relationships.count()} relationships individually to Weaviate."}
 
         relationships.forEach {

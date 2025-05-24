@@ -1,0 +1,23 @@
+plugins {
+    id 'java'
+}
+
+group = 'org.vitrivr'
+version = '0.1.9'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api project(':vitrivr-engine-core')
+
+    /** Weaviate Client */
+    implementation group: 'io.weaviate', name: 'client', version: version_weaviate
+
+    /** Vitrivr engine Core is required for running tests. */
+    testImplementation(testFixtures(project(':vitrivr-engine-core')))
+}
+test {
+    useJUnitPlatform()
+}

@@ -283,11 +283,11 @@ class WeaviateRetrievableReader(override val connection: WeaviateConnection): Re
 
         if (result.hasErrors()) {
             LOGGER.error { "Error retrieving retrievables: ${result.error}" }
-            return mutableListOf<Relationship.ById>().asSequence()
+            return emptySequence()
         }
         if (result.result == null) {
             LOGGER.warn { "No retrievables found." }
-            return mutableListOf<Relationship.ById>().asSequence()
+            return emptySequence()
         }
 
         /**
