@@ -22,17 +22,16 @@ internal val LOGGER: KLogger = logger("org.vitrivr.engine.database.weaviate.Weav
  * @author Nico Bachmann
  * @version 1.1.0
  */
-class WeaviateConnection(provider: WeaviateConnectionProvider, className: String, internal val client: WeaviateClient, namedVectors: List<String>) : AbstractConnection(className, provider) {
+class WeaviateConnection(provider: WeaviateConnectionProvider, val className: String, internal val client: WeaviateClient, namedVectors: List<String>) : AbstractConnection(className, provider) {
 
     init {
         /* Check if we need to create the collection ourselves */
-        val exists = client.schema().exists().withClassName(RETRIEVABLE_ENTITY_NAME).run()
-        if (!exists.hasErrors()) {
-            LOGGER.error { "Error checking for existence of collection '$RETRIEVABLE_ENTITY_NAME': ${exists.error}" }
+        val exists = client.schema().exists().withClassName(className).run()
+        if (exists.hasErrors()) {
+            LOGGER.error { "Error checking for existence of collection '$className': ${exists.error}" }
         }
-
         if (exists.result) {
-            LOGGER.info { "Collection '$RETRIEVABLE_ENTITY_NAME' already exists." }
+            LOGGER.info { "Collection '$className' already exists." }
         } else {
             /* Index for the retrievables in the collection */
             val invertedIndexConfig = InvertedIndexConfig.builder()
@@ -61,7 +60,7 @@ class WeaviateConnection(provider: WeaviateConnectionProvider, className: String
 
             /* Put everything together */
             val wClass = WeaviateClass.builder()
-                .className(RETRIEVABLE_ENTITY_NAME)
+                .className(className)
                 .description(RETRIEVABLE_ENTITY_DESCRIPTION)
                 .invertedIndexConfig(invertedIndexConfig)
                 .vectorConfig(vectorConfig)
@@ -77,11 +76,14 @@ class WeaviateConnection(provider: WeaviateConnectionProvider, className: String
             /* Create the collection */
             client.schema().classCreator().withClass(wClass).run().let {
                 if (it.hasErrors()) {
-                    LOGGER.error { "Error creating collection '$RETRIEVABLE_ENTITY_NAME': ${it.error}" }
+                    LOGGER.error { "Error creating collection '$className': ${it.error}" }
                 } else {
-                    LOGGER.info { "Collection '$RETRIEVABLE_ENTITY_NAME' created successfully." }
+                    LOGGER.info { "Collection '$className' created successfully." }
                 }
             }
+
+            Constants.COLLECTION_NAME = className
+
         }
     }
 

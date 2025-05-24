@@ -4,7 +4,7 @@
       "connection": {
         "database": "WeaviateConnectionProvider",
         "parameters": {
-          "Host": "10.34.64.158",
+          "host": "10.34.64.158",
           "port": "30080",
           "namedVectors": "clip, averagecolor"
         }

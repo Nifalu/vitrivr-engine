@@ -26,7 +26,7 @@ class WeaviateRetrievableReader(override val connection: WeaviateConnection): Re
      */
     override fun get(id: RetrievableId): Retrieved? {
         val result = connection.client.data().objectsGetter()
-            .withClassName(RETRIEVABLE_ENTITY_NAME)
+            .withClassName(Constants.COLLECTION_NAME)
             .withID(id.toString())
             .withLimit(1)
             .run()
@@ -68,7 +68,7 @@ class WeaviateRetrievableReader(override val connection: WeaviateConnection): Re
             .build()
 
         val result = connection.client.graphQL().get()
-            .withClassName(RETRIEVABLE_ENTITY_NAME)
+            .withClassName(Constants.COLLECTION_NAME)
             .withFields(
                 Field.builder().name("id").build(),
                 Field.builder().name(RETRIEVABLE_TYPE_PROPERTY_NAME).build()
@@ -94,7 +94,7 @@ class WeaviateRetrievableReader(override val connection: WeaviateConnection): Re
      */
     override fun getAll(): Sequence<Retrieved> {
         val result = connection.client.graphQL().get()
-            .withClassName(RETRIEVABLE_ENTITY_NAME)
+            .withClassName(Constants.COLLECTION_NAME)
             .withFields(
                 Field.builder().name("_additional").fields(
                     Field.builder().name("id").build()
@@ -117,7 +117,7 @@ class WeaviateRetrievableReader(override val connection: WeaviateConnection): Re
      */
     override fun exists(id: RetrievableId): Boolean {
         val result = connection.client.data().checker()
-            .withClassName(RETRIEVABLE_ENTITY_NAME)
+            .withClassName(Constants.COLLECTION_NAME)
             .withID(id.toString())
             .run()
         if (result.hasErrors()) {
@@ -182,7 +182,7 @@ class WeaviateRetrievableReader(override val connection: WeaviateConnection): Re
         fun buildPredicateWhereFilter(predicates: Array<String>): WhereFilter {
             val hasPredicateFilter = predicates.map { p ->
                 WhereFilter.builder()
-                    .path(p, RETRIEVABLE_ENTITY_NAME, "id")
+                    .path(p, Constants.COLLECTION_NAME, "id")
                     .operator(Operator.NotEqual)
                     .valueText("")
                     .build()
@@ -246,7 +246,7 @@ class WeaviateRetrievableReader(override val connection: WeaviateConnection): Re
         if (objectsArray.isNotEmpty()) {
             val predicateFilters = existingPredicates.map { p ->
                 WhereFilter.builder()
-                    .path(p, RETRIEVABLE_ENTITY_NAME, "id")
+                    .path(p, Constants.COLLECTION_NAME, "id")
                     .operator(Operator.ContainsAny)
                     .valueText(*objectsArray) // objects is a list of id's, however weaviate stores a reference beacon here...?
                     .build()
@@ -274,7 +274,7 @@ class WeaviateRetrievableReader(override val connection: WeaviateConnection): Re
          * Execute the query
          */
         val result = connection.client.graphQL().get()
-            .withClassName(RETRIEVABLE_ENTITY_NAME)
+            .withClassName(Constants.COLLECTION_NAME)
             .withFields(
                 *fields.toTypedArray()
             )
@@ -338,7 +338,7 @@ class WeaviateRetrievableReader(override val connection: WeaviateConnection): Re
             .build()
 
         val result = connection.client.graphQL().aggregate()
-            .withClassName(RETRIEVABLE_ENTITY_NAME)
+            .withClassName(Constants.COLLECTION_NAME)
             .withFields(metaCountField)
             .run()
 
@@ -349,7 +349,7 @@ class WeaviateRetrievableReader(override val connection: WeaviateConnection): Re
 
         return (result.result.data as? Map<*,*>)
             ?.let { it["Aggregate"] as? Map<*,*> }
-            ?.let { it[RETRIEVABLE_ENTITY_NAME] as? List<*> }
+            ?.let { it[Constants.COLLECTION_NAME] as? List<*> }
             ?.let { it.first() as? Map<*,*> }
             ?.let { it["meta"] as? Map<*,*> }
             ?.let { it["count"] as? Double }

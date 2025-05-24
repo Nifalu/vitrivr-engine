@@ -22,7 +22,7 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
 
     override fun initialize() {
         val result = connection.client.schema().propertyCreator()
-            .withClassName(RETRIEVABLE_ENTITY_NAME)
+            .withClassName(Constants.COLLECTION_NAME)
             .withProperty(this.property)
             .run()
 
@@ -34,7 +34,7 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
     }
 
     override fun isInitialized(): Boolean {
-        this.connection.client.schema().classGetter().withClassName(RETRIEVABLE_ENTITY_NAME).run().let { result ->
+        this.connection.client.schema().classGetter().withClassName(Constants.COLLECTION_NAME).run().let { result ->
             if (result.hasErrors()) {
                 LOGGER.error { "Failed to check if property '${this.property.name}' is initialized due to exception: ${result.error}" }
                 return false
@@ -46,7 +46,7 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
 
     override fun get(retrievableId: UUID): D? {
         val result = this.connection.client.data().objectsGetter()
-            .withClassName(RETRIEVABLE_ENTITY_NAME)
+            .withClassName(Constants.COLLECTION_NAME)
             .withID(retrievableId.toString())
             .run()
 
@@ -72,7 +72,7 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
             .build()
 
         val result = this.connection.client.graphQL().get()
-            .withClassName(RETRIEVABLE_ENTITY_NAME)
+            .withClassName(Constants.COLLECTION_NAME)
             .withFields(
                 Field.builder().name("_additional").fields(
                     Field.builder().name("id").build()).build(),
@@ -94,7 +94,7 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
 
     override fun getAll() : Sequence<D> {
         val result = this.connection.client.graphQL().get()
-            .withClassName(RETRIEVABLE_ENTITY_NAME)
+            .withClassName(Constants.COLLECTION_NAME)
             .withFields(
                 Field.builder().name("_additional").fields(
                     Field.builder().name("id").build()).build(),
@@ -139,7 +139,7 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
      */
     override fun set(descriptor: D): Boolean {
         val result = this.connection.client.data().updater()
-            .withClassName(RETRIEVABLE_ENTITY_NAME)
+            .withClassName(Constants.COLLECTION_NAME)
             .withID(descriptor.retrievableId.toString())
             .withMerge()
             .withProperties(
@@ -161,7 +161,7 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
     override fun isSet(retrievableId: UUID): Boolean {
         /* get the retrievable */
         val result = this.connection.client.data().objectsGetter()
-            .withClassName(RETRIEVABLE_ENTITY_NAME)
+            .withClassName(Constants.COLLECTION_NAME)
             .withID(retrievableId.toString())
             .run()
 
@@ -179,7 +179,7 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
      */
     override fun unset(descriptor: D): Boolean {
         val result = this.connection.client.data().objectsGetter()
-            .withClassName(RETRIEVABLE_ENTITY_NAME)
+            .withClassName(Constants.COLLECTION_NAME)
             .withID(descriptor.retrievableId.toString())
             .run()
 
@@ -191,7 +191,7 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
         val wObject = result.result.firstOrNull() ?: return true // nothing to delete
         wObject.properties.remove(this.property.name) // remove the property
         val update = this.connection.client.data().updater() // replace the entire object.
-            .withClassName(RETRIEVABLE_ENTITY_NAME)
+            .withClassName(Constants.COLLECTION_NAME)
             .withID(descriptor.retrievableId.toString())
             .withProperties(wObject.properties)
             .run()
@@ -213,7 +213,7 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
             val whereFilter = this.buildWhereFilter(query)
 
             val result = this.connection.client.graphQL().get()
-                .withClassName(RETRIEVABLE_ENTITY_NAME)
+                .withClassName(Constants.COLLECTION_NAME)
                 .withFields(
                     Field.builder().name("_additional").fields(
                         Field.builder().name("id").build()).build(),

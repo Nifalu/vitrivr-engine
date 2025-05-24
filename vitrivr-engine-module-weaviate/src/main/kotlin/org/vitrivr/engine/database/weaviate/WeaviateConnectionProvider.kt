@@ -97,6 +97,6 @@ class WeaviateConnectionProvider: AbstractConnectionProvider() {
         val config = Config(scheme, url)
         val db = WeaviateClient(config)
 
-        return WeaviateConnection(this, RETRIEVABLE_ENTITY_NAME, db, namedVectors)
+        return WeaviateConnection(this, schemaName.firstUpperCase(), db, namedVectors)
     }
 }

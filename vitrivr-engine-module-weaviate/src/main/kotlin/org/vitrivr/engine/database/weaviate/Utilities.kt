@@ -58,9 +58,9 @@ internal fun <T>  Result<GraphQLResponse<T>?>.toWeaviateObject(): Sequence<Weavi
     }
 
     /* Get the list with all the retrievables in the response */
-    val retrievables = getSection[RETRIEVABLE_ENTITY_NAME]
+    val retrievables = getSection[Constants.COLLECTION_NAME]
     if (retrievables !is List<*>) {
-        LOGGER.error { "No objects found in '$RETRIEVABLE_ENTITY_NAME'... : $retrievables" }
+        LOGGER.error { "No objects found in '$Constants.COLLECTION_NAME'... : $retrievables" }
         return null
     }
 
@@ -91,7 +91,7 @@ internal fun <T>  Result<GraphQLResponse<T>?>.toWeaviateObject(): Sequence<Weavi
             .mapValues { it.value as Any }
 
         WeaviateObject.builder()
-            .className(RETRIEVABLE_ENTITY_NAME)
+            .className(Constants.COLLECTION_NAME)
             .id(id)
             .properties(properties)
             .vectors(vectors)
@@ -106,14 +106,14 @@ private fun warnAndSkip(item: Any?): Nothing? {
 }
 
 internal fun WeaviateClient.findPredicateProperties(): List<String> {
-    this.schema().classGetter().withClassName(RETRIEVABLE_ENTITY_NAME).run().let { result ->
+    this.schema().classGetter().withClassName(Constants.COLLECTION_NAME).run().let { result ->
         if (result.hasErrors()) {
             LOGGER.error { "Error retrieving schema: ${result.error}" }
             return emptyList()
         }
 
         return result.result.properties
-            .filter { it.dataType.contains(RETRIEVABLE_ENTITY_NAME) }
+            .filter { it.dataType.contains(Constants.COLLECTION_NAME) }
             .map { it.name }
     }
 }
@@ -140,3 +140,12 @@ internal fun String.firstLowerCase(): String {
     return this[0].lowercaseChar() + this.substring(1)
 }
 
+/**
+ * Extension function that ensures the first character of a string is uppercase.
+ */
+internal fun String.firstUpperCase(): String {
+    if (this.isEmpty()) {
+        return this
+    }
+    return this[0].uppercaseChar() + this.substring(1)
+}
