@@ -13,7 +13,7 @@ import org.vitrivr.engine.database.weaviate.toWeaviateOperator
 
 import java.util.*
 
-class BooleanDescriptorProperty(field: Schema.Field<*, BooleanDescriptor>, connection: WeaviateConnection) : AbstractScalarDescriptorProperty<BooleanDescriptor, Value.Boolean, Boolean>(field, connection) {
+class BooleanDescriptorProperty(val field: Schema.Field<*, BooleanDescriptor>, connection: WeaviateConnection) : AbstractScalarDescriptorProperty<BooleanDescriptor, Value.Boolean, Boolean>(connection) {
     override val property: Property = Property.builder()
         .name(field.fieldName)
         .description("This ${field.fieldName} describes a boolean feature of a retrievable")
@@ -22,7 +22,7 @@ class BooleanDescriptorProperty(field: Schema.Field<*, BooleanDescriptor>, conne
 
     override fun resultToDescriptor(value: Any, id: UUID): BooleanDescriptor? {
         return if (value is Boolean) {
-            BooleanDescriptor(id, id, Value.Boolean(value), this.field)
+            BooleanDescriptor(id, id, Value.Boolean(value), field)
         } else {
             null
         }

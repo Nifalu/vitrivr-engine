@@ -7,7 +7,6 @@ import io.weaviate.client.v1.graphql.query.argument.WhereArgument
 import io.weaviate.client.v1.graphql.query.fields.Field
 import io.weaviate.client.v1.schema.model.Property
 import org.vitrivr.engine.core.model.descriptor.scalar.ScalarDescriptor
-import org.vitrivr.engine.core.model.metamodel.Schema
 import org.vitrivr.engine.core.model.query.bool.SimpleBooleanQuery
 import org.vitrivr.engine.core.model.retrievable.Retrieved
 import org.vitrivr.engine.core.model.types.Value
@@ -17,12 +16,12 @@ import org.vitrivr.engine.database.weaviate.properties.AbstractDescriptorPropert
 import org.vitrivr.engine.database.weaviate.toWeaviateObject
 import java.util.*
 
-sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Value.ScalarValue<S>, S>(field: Schema.Field<*, D>, connection: WeaviateConnection): AbstractDescriptorProperty<D>(field, connection) {
+sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Value.ScalarValue<S>, S>(val connection: WeaviateConnection): AbstractDescriptorProperty<D>() {
 
     abstract val property: Property
 
     override fun initialize() {
-        val result = this.connection.client.schema().propertyCreator()
+        val result = connection.client.schema().propertyCreator()
             .withClassName(RETRIEVABLE_ENTITY_NAME)
             .withProperty(this.property)
             .run()
@@ -37,7 +36,7 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
     override fun isInitialized(): Boolean {
         this.connection.client.schema().classGetter().withClassName(RETRIEVABLE_ENTITY_NAME).run().let { result ->
             if (result.hasErrors()) {
-                LOGGER.error { "Failed to check if property '${this.name}' is initialized due to exception: ${result.error}" }
+                LOGGER.error { "Failed to check if property '${this.property.name}' is initialized due to exception: ${result.error}" }
                 return false
             }
             return result.result.properties.any { it.name == this.property.name && it.dataType == this.property.dataType }

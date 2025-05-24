@@ -2,17 +2,10 @@ package org.vitrivr.engine.database.weaviate.properties
 
 import io.weaviate.client.v1.data.model.WeaviateObject
 import org.vitrivr.engine.core.model.descriptor.Descriptor
-import org.vitrivr.engine.core.model.metamodel.Schema
 import org.vitrivr.engine.core.model.retrievable.Retrieved
-import org.vitrivr.engine.database.weaviate.WeaviateConnection
 import java.util.*
 
-abstract class AbstractDescriptorProperty<D : Descriptor<*>>(
-    protected val field: Schema.Field<*, D>,
-    protected val connection: WeaviateConnection)
-{
-    val prototype by lazy { this.field.getPrototype() }
-    val name = this.field.fieldName
+abstract class AbstractDescriptorProperty<D : Descriptor<*>> {
 
     abstract fun initialize()
 
@@ -39,4 +32,5 @@ abstract class AbstractDescriptorProperty<D : Descriptor<*>>(
     abstract fun queryRetrievable(query: org.vitrivr.engine.core.model.query.Query): Sequence<Retrieved>
 
     abstract fun queryProperty(query: org.vitrivr.engine.core.model.query.Query): Sequence<D>
+
 }
