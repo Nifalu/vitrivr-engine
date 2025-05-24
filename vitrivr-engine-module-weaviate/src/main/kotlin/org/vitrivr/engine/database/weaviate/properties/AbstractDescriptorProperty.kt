@@ -7,6 +7,8 @@ import java.util.*
 
 abstract class AbstractDescriptorProperty<D : Descriptor<*>> {
 
+    abstract val name: String
+
     abstract fun initialize()
 
     abstract fun isInitialized() : Boolean

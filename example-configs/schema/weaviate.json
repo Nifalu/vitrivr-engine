@@ -1,6 +1,6 @@
 {
   "schemas": {
-    "example": {
+    "weaviate": {
       "connection": {
         "database": "WeaviateConnectionProvider",
         "parameters": {
@@ -10,27 +10,8 @@
         }
       },
       "fields": {
-        "averagecolor": {
-          "factory": "AverageColor"
-        },
-        "file": {
-          "factory": "FileSourceMetadata"
-        },
-        "clip": {
-          "factory": "DenseEmbedding",
-          "parameters": {
-            "host": "http://10.34.64.84:8888/",
-            "model": "open-clip-vit-b32",
-            "length": "512",
-            "timeoutSeconds": "100",
-            "retries": "1000"
-          }
-        },
-        "time": {
-          "factory": "TemporalMetadata"
-        },
-        "video": {
-          "factory": "VideoSourceMetadata"
+        "hasColor": {
+          "factory": "ScalarBooleanRetriever"
         }
       },
       "resolvers": {
