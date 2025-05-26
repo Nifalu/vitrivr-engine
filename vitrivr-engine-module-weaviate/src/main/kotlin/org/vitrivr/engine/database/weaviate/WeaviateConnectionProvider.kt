@@ -93,6 +93,7 @@ class WeaviateConnectionProvider: AbstractConnectionProvider() {
         val url = "$host:$port"
 
         val namedVectors = (parameters[PARAMETERS_NAME_NAMED_VECTORS]?: "").split(",").map { it.trim() }
+        LOGGER.warn { "Using named vectors: $namedVectors" }
 
         val config = Config(scheme, url)
         val db = WeaviateClient(config)

@@ -84,6 +84,9 @@ class WeaviateConnection(provider: WeaviateConnectionProvider, val className: St
 
             Constants.COLLECTION_NAME = className
 
+            LOGGER.info { "WeaviateConnection initialized with class name '$className' and named vectors: $namedVectors" }
+            LOGGER.warn { "Constants .COLLECTION_NAME has been set to '${Constants.COLLECTION_NAME}'"}
+
         }
     }
 

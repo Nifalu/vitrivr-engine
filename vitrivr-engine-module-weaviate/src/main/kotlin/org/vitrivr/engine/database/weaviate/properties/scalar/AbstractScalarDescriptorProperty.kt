@@ -26,20 +26,17 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
             .withProperty(this.property)
             .run()
 
-        if (result.hasErrors()) {
-            LOGGER.error {
-                "Failed to initialize property '${this.property.name}' in Weaviate due to exception: ${result.error}"
-            }
+        if (!isValid(result)) {
+            LOGGER.error { "Failed to initialize property '${this.property.name}' in Weaviate due to error: ${result.error}" }
         }
     }
 
     override fun isInitialized(): Boolean {
         this.connection.client.schema().classGetter().withClassName(Constants.COLLECTION_NAME).run().let { result ->
-            if (result.hasErrors()) {
-                LOGGER.error { "Failed to check if property '${this.property.name}' is initialized due to exception: ${result.error}" }
-                return false
+            if (isValid(result)) {
+                return result.result.properties.any { it.name == this.property.name && it.dataType == this.property.dataType }
             }
-            return result.result.properties.any { it.name == this.property.name && it.dataType == this.property.dataType }
+            return false
         }
     }
 
@@ -50,16 +47,13 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
             .withID(retrievableId.toString())
             .run()
 
-        if (result.hasErrors()) {
-            LOGGER.error { "Failed to fetch descriptor $retrievableId due to error." }
-            return null
+        if (isValid(result)) {
+            result.result.first().properties[this.property.name]?.let {
+                val id = UUID.fromString(result.result.first().id)
+                return this.resultToDescriptor(it, id)
+            } ?: return null
         }
-
-        result.result.first().properties[this.property.name]?.let {
-            val id = UUID.fromString(result.result.first().id)
-            return this.resultToDescriptor(it, id)
-        } ?: return null
-
+        return null
     }
 
 
@@ -80,16 +74,11 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
             .withWhere(WhereArgument.builder().filter(idFilter).build())
             .run()
 
-        if (result.hasErrors()) {
-            LOGGER.error { "Failed to fetch descriptors $retrievableIds due to error." }
-            return emptySequence()
+        return if (isValid(result)) {
+            wObjectsToDescriptors(result.toWeaviateObject() ?: emptySequence())
+        } else {
+            emptySequence()
         }
-        if (result.result == null) {
-            LOGGER.warn { "No descriptors found for $retrievableIds" }
-            return emptySequence()
-        }
-
-        return wObjectsToDescriptors(result.toWeaviateObject() ?: emptySequence())
     }
 
     override fun getAll() : Sequence<D> {
@@ -101,29 +90,10 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
                 Field.builder().name(this.property.name).build())
             .run()
 
-        if (result.hasErrors()) {
-            LOGGER.error { "Failed to fetch descriptors due to error." }
-            return emptySequence()
-        }
-        if (result.result == null) {
-            LOGGER.warn { "No descriptors found" }
-            return emptySequence()
-        }
-
-        return wObjectsToDescriptors(result.toWeaviateObject() ?: emptySequence())
-    }
-
-    override fun wObjectsToRetrieved(weaviateObjects: Sequence<WeaviateObject>): Sequence<Retrieved> {
-        return weaviateObjects.map { retrievable ->
-            val type = retrievable.properties[RETRIEVABLE_TYPE_PROPERTY_NAME] as? String ?: run {
-                LOGGER.error { "Retrievable object ${retrievable.id} does not have a type property set." }
-                "unknown"
-            }
-            Retrieved(
-                id = UUID.fromString(retrievable.id),
-                type = type,
-                descriptors = this.wObjectsToDescriptors(sequenceOf(retrievable)).toSet()
-            )
+        return if (isValid(result)) {
+            wObjectsToDescriptors(result.toWeaviateObject() ?: emptySequence())
+        } else {
+            emptySequence()
         }
     }
 
@@ -181,6 +151,7 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
         val result = this.connection.client.data().objectsGetter()
             .withClassName(Constants.COLLECTION_NAME)
             .withID(descriptor.retrievableId.toString())
+            .withVector()
             .run()
 
         if (result.hasErrors()) {
@@ -194,6 +165,7 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
             .withClassName(Constants.COLLECTION_NAME)
             .withID(descriptor.retrievableId.toString())
             .withProperties(wObject.properties)
+            .withVectors(wObject.vectors)
             .run()
 
         if (update.hasErrors()) {
@@ -223,11 +195,11 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
 
             if (result.hasErrors()) {
                 LOGGER.error { "Failed to fetch descriptors due to error." }
-                emptySequence<D>()
+                emptySequence<WeaviateObject>()
             }
             if (result.result == null) {
                 LOGGER.warn { "No descriptors found" }
-                emptySequence<D>()
+                emptySequence<WeaviateObject>()
             }
             result.toWeaviateObject() ?: emptySequence()
         }

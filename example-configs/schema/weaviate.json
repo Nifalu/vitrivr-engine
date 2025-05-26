@@ -6,36 +6,19 @@
         "parameters": {
           "host": "10.34.64.158",
           "port": "30080",
-          "namedVectors": "clip, averagecolor"
+          "vectors": "averagecolor"
         }
       },
       "fields": {
-        "hasColor": {
-          "factory": "ScalarBooleanRetriever"
+        "averagecolor": {
+          "factory": "AverageColor"
         }
       },
       "resolvers": {
-        "thumbnails": {
-          "factory": "DiskResolver",
-          "parameters": {
-            "location": "./example/thumbs"
-          }
-        }
       },
       "exporters": {
-        "thumbnail": {
-          "factory": "ThumbnailExporter",
-          "parameters": {
-            "resolver": "thumbnails",
-            "maxSideResolution": "300",
-            "mimeType": "JPG"
-          }
-        }
       },
       "extractionPipelines": {
-        "video": {
-          "path": "./example-configs/ingestion/example/video.json"
-        }
       }
     }
   }

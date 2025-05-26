@@ -8,14 +8,17 @@ import io.weaviate.client.v1.data.model.WeaviateObject
 import io.weaviate.client.v1.graphql.model.GraphQLResponse
 import io.weaviate.client.base.Result
 import io.weaviate.client.v1.filters.Operator
+import org.vitrivr.engine.core.model.descriptor.vector.FloatVectorDescriptor
 import org.vitrivr.engine.core.model.query.basics.ComparisonOperator
 import org.vitrivr.engine.database.weaviate.properties.AbstractDescriptorProperty
 import org.vitrivr.engine.database.weaviate.properties.scalar.BooleanDescriptorProperty
+import org.vitrivr.engine.database.weaviate.properties.vector.FloatVectorDescriptorProperty
 
 
 @Suppress("UNCHECKED_CAST")
 internal fun <D: Descriptor<*>> Schema.Field<*, D>.toDescriptorProperty() = when (this.analyser.prototype(this)) {
     is BooleanDescriptor -> BooleanDescriptorProperty(this as Schema.Field<*, BooleanDescriptor>, this.connection as WeaviateConnection)
+    is FloatVectorDescriptor -> FloatVectorDescriptorProperty(this as Schema.Field<*, FloatVectorDescriptor>, this.connection as WeaviateConnection)
     /*
     is ByteDescriptor -> ByteProperty(this as Schema.Field<*, ByteDescriptor>, this.connection as WeaviateConnection)
     is DoubleDescriptor -> DoubleProperty(this as Schema.Field<*, DoubleDescriptor>, this.connection as WeaviateConnection)
@@ -25,7 +28,6 @@ internal fun <D: Descriptor<*>> Schema.Field<*, D>.toDescriptorProperty() = when
     is ShortDescriptor -> ShortProperty(this as Schema.Field<*, ShortDescriptor>, this.connection as WeaviateConnection)
     is StringDescriptor -> StringProperty(this as Schema.Field<*, StringDescriptor>, this.connection as WeaviateConnection)
     is TextDescriptor -> TextProperty(this as Schema.Field<*, TextDescriptor>, this.connection as WeaviateConnection)
-    is FloatVectorDescriptor -> VectorProperty(this as Schema.Field<*, FloatVectorDescriptor>, this.connection as WeaviateConnection)
     is StructDescriptor<*> -> StructDescriptorTable(this as Schema.Field<*, StructDescriptor<*>>, this.connection as WeaviateConnection)
      */
     else -> throw IllegalArgumentException("Unsupported descriptor type: ${this.analyser.prototype(this)}")
@@ -40,7 +42,7 @@ internal fun <T>  Result<GraphQLResponse<T>?>.toWeaviateObject(): Sequence<Weavi
     
     /* First check if the response has errors */
     if (this.hasErrors()) {
-        LOGGER.error { "Error parsing GraphQL Response: ${this.error}" }
+        LOGGER.error { "Error parsing GraphQL Response: $this" }
         return null
     }
 
@@ -107,7 +109,13 @@ private fun warnAndSkip(item: Any?): Nothing? {
 
 internal fun WeaviateClient.findPredicateProperties(): List<String> {
     this.schema().classGetter().withClassName(Constants.COLLECTION_NAME).run().let { result ->
+
         if (result.hasErrors()) {
+            LOGGER.error { "Error retrieving schema: ${result.error}" }
+            return emptyList()
+        }
+
+        if (result.result == null) {
             LOGGER.error { "Error retrieving schema: ${result.error}" }
             return emptyList()
         }
@@ -128,7 +136,6 @@ internal fun ComparisonOperator.toWeaviateOperator(): String = when (this) {
     ComparisonOperator.LIKE -> Operator.Like
     else -> throw IllegalArgumentException("Unsupported comparison operator: $this")
 }
-
 
 /**
  * Extension function that ensures the first character of a string is lowercase.
