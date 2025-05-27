@@ -35,7 +35,7 @@ class FloatVectorDescriptorProperty(val field: Schema.Field<*, FloatVectorDescri
 
     override fun set(descriptor: FloatVectorDescriptor): Boolean {
         val result = this.connection.client.data().updater()
-            .withClassName(Constants.COLLECTION_NAME)
+            .withClassName(Constants.getCollectionName())
             .withID(descriptor.retrievableId.toString())
             .withMerge()
             .withVectors(
@@ -61,7 +61,10 @@ class FloatVectorDescriptorProperty(val field: Schema.Field<*, FloatVectorDescri
             }
 
             val fields = mutableListOf<Field>()
-            fields.add(Field.builder().name("_additional").fields(Field.builder().name("id").build()).build())// get the id
+            fields.add(Field.builder().name("_additional").fields(
+                Field.builder().name("id").build(),
+                Field.builder().name("distance").build()
+            ).build())// get the id + distance
             fields.add(Field.builder().name(RETRIEVABLE_TYPE_PROPERTY_NAME).build()) // get the type
 
             if (query.fetchVector) {
@@ -72,7 +75,7 @@ class FloatVectorDescriptorProperty(val field: Schema.Field<*, FloatVectorDescri
             }
 
             val result = this.connection.client.graphQL().get()
-                .withClassName(Constants.COLLECTION_NAME)
+                .withClassName(Constants.getCollectionName())
                 .withFields(*fields.toTypedArray())
                 .withNearVector(
                     NearVectorArgument.builder()

@@ -4,6 +4,9 @@ import io.weaviate.client.base.Result
 import io.weaviate.client.v1.data.model.WeaviateObject
 import org.vitrivr.engine.core.model.descriptor.Descriptor
 import org.vitrivr.engine.core.model.retrievable.Retrieved
+import org.vitrivr.engine.core.model.retrievable.attributes.DistanceAttribute
+import org.vitrivr.engine.core.model.retrievable.attributes.RetrievableAttribute
+import org.vitrivr.engine.core.model.retrievable.attributes.ScoreAttribute
 import org.vitrivr.engine.database.weaviate.LOGGER
 import org.vitrivr.engine.database.weaviate.RETRIEVABLE_TYPE_PROPERTY_NAME
 import java.util.*
@@ -42,10 +45,18 @@ abstract class AbstractDescriptorProperty<D : Descriptor<*>> {
                 LOGGER.error { "Retrievable object ${retrievable.id} does not have a type property set." }
                 "unknown"
             }
+            val attributes = mutableSetOf<RetrievableAttribute>()
+            val id = UUID.fromString(retrievable.id)
+            val distance = retrievable.additional?.get("distance") as? Double
+            if (distance != null) {
+                attributes.add(DistanceAttribute.Local(distance, id))
+            }
+
             Retrieved(
-                id = UUID.fromString(retrievable.id),
+                id = id,
                 type = type,
-                descriptors = this.wObjectsToDescriptors(sequenceOf(retrievable)).toSet()
+                descriptors = this.wObjectsToDescriptors(sequenceOf(retrievable)).toSet(),
+                attributes = attributes
             )
         }
     }

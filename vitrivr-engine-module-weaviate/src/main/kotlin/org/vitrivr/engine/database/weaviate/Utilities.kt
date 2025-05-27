@@ -13,6 +13,7 @@ import org.vitrivr.engine.core.model.query.basics.ComparisonOperator
 import org.vitrivr.engine.database.weaviate.properties.AbstractDescriptorProperty
 import org.vitrivr.engine.database.weaviate.properties.scalar.BooleanDescriptorProperty
 import org.vitrivr.engine.database.weaviate.properties.vector.FloatVectorDescriptorProperty
+import java.util.logging.Logger
 
 
 @Suppress("UNCHECKED_CAST")
@@ -60,9 +61,9 @@ internal fun <T>  Result<GraphQLResponse<T>?>.toWeaviateObject(): Sequence<Weavi
     }
 
     /* Get the list with all the retrievables in the response */
-    val retrievables = getSection[Constants.COLLECTION_NAME]
+    val retrievables = getSection[Constants.getCollectionName()]
     if (retrievables !is List<*>) {
-        LOGGER.error { "No objects found in '$Constants.COLLECTION_NAME'... : $retrievables" }
+        LOGGER.error { "No objects found in '${Constants.getCollectionName()}'... : $retrievables" }
         return null
     }
 
@@ -71,6 +72,7 @@ internal fun <T>  Result<GraphQLResponse<T>?>.toWeaviateObject(): Sequence<Weavi
         val contents = item as? Map<*, *> ?: return@mapNotNull warnAndSkip(item)
         val additional = contents["_additional"] as? Map<*,*> ?: return@mapNotNull warnAndSkip(item)
         val id = additional["id"] as? String ?: return@mapNotNull warnAndSkip(item)
+        val distance = additional["distance"] as? Double // vector similarity score
 
         /* If the object has namedVectors extract them, otherwise just take an emptyMap */
         val vectorList = additional["vectors"] as? Map<*,*>
@@ -93,8 +95,9 @@ internal fun <T>  Result<GraphQLResponse<T>?>.toWeaviateObject(): Sequence<Weavi
             .mapValues { it.value as Any }
 
         WeaviateObject.builder()
-            .className(Constants.COLLECTION_NAME)
+            .className(Constants.getCollectionName())
             .id(id)
+            .additional(mapOf("distance" to (distance)))
             .properties(properties)
             .vectors(vectors)
             .build()
@@ -108,7 +111,7 @@ private fun warnAndSkip(item: Any?): Nothing? {
 }
 
 internal fun WeaviateClient.findPredicateProperties(): List<String> {
-    this.schema().classGetter().withClassName(Constants.COLLECTION_NAME).run().let { result ->
+    this.schema().classGetter().withClassName(Constants.getCollectionName()).run().let { result ->
 
         if (result.hasErrors()) {
             LOGGER.error { "Error retrieving schema: ${result.error}" }
@@ -121,7 +124,7 @@ internal fun WeaviateClient.findPredicateProperties(): List<String> {
         }
 
         return result.result.properties
-            .filter { it.dataType.contains(Constants.COLLECTION_NAME) }
+            .filter { it.dataType.contains(Constants.getCollectionName()) }
             .map { it.name }
     }
 }

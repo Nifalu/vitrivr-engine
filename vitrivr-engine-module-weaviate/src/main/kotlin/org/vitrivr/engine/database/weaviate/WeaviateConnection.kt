@@ -22,9 +22,10 @@ internal val LOGGER: KLogger = logger("org.vitrivr.engine.database.weaviate.Weav
  * @author Nico Bachmann
  * @version 1.1.0
  */
-class WeaviateConnection(provider: WeaviateConnectionProvider, val className: String, internal val client: WeaviateClient, namedVectors: List<String>) : AbstractConnection(className, provider) {
+class WeaviateConnection(provider: WeaviateConnectionProvider, className: String, internal val client: WeaviateClient, namedVectors: List<String>) : AbstractConnection(className, provider) {
 
     init {
+        Constants.setCollectionName(className)
         /* Check if we need to create the collection ourselves */
         val exists = client.schema().exists().withClassName(className).run()
         if (exists.hasErrors()) {
@@ -82,10 +83,8 @@ class WeaviateConnection(provider: WeaviateConnectionProvider, val className: St
                 }
             }
 
-            Constants.COLLECTION_NAME = className
-
             LOGGER.info { "WeaviateConnection initialized with class name '$className' and named vectors: $namedVectors" }
-            LOGGER.warn { "Constants .COLLECTION_NAME has been set to '${Constants.COLLECTION_NAME}'"}
+            LOGGER.warn { "Constants .COLLECTION_NAME has been set to '${Constants.getCollectionName()}'"}
 
         }
     }

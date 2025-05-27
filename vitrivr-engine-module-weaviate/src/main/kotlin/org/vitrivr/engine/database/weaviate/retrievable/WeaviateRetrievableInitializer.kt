@@ -11,9 +11,9 @@ internal class WeaviateRetrievableInitializer(private val connection: WeaviateCo
      * Redundant initialization method. We do the initialization in the [WeaviateConnection] class.
      */
     override fun initialize() {
-        val classExists = connection.client.schema().exists().withClassName(Constants.COLLECTION_NAME).run()
+        val classExists = connection.client.schema().exists().withClassName(Constants.getCollectionName()).run()
         if (classExists.hasErrors()) {
-            LOGGER.error { "The $Constants.COLLECTION_NAME Collection should be initialized by now." }
+            LOGGER.error { "The $Constants.getCollectionName() Collection should be initialized by now." }
             return
         }
     }
@@ -24,7 +24,7 @@ internal class WeaviateRetrievableInitializer(private val connection: WeaviateCo
      */
     override fun deinitialize() {
         try {
-            connection.client.schema().classDeleter().withClassName(Constants.COLLECTION_NAME).run()
+            connection.client.schema().classDeleter().withClassName(Constants.getCollectionName()).run()
         } catch (e: Throwable) {
             LOGGER.error(e) { "Failed to de-initialize retrievable entities due to exception." }
         }
@@ -35,7 +35,7 @@ internal class WeaviateRetrievableInitializer(private val connection: WeaviateCo
      * Returns true if the retrievable collection is initialized.
      */
     override fun isInitialized(): Boolean =
-        connection.client.schema().exists().withClassName(Constants.COLLECTION_NAME).run().result
+        connection.client.schema().exists().withClassName(Constants.getCollectionName()).run().result
 
 
     /**
@@ -44,7 +44,7 @@ internal class WeaviateRetrievableInitializer(private val connection: WeaviateCo
     override fun truncate() {
         try {
             connection.client.batch().objectsBatchDeleter()
-                .withClassName(Constants.COLLECTION_NAME)
+                .withClassName(Constants.getCollectionName())
                 .run()
         } catch (e: Throwable) {
             LOGGER.error(e) { "Failed to truncate retrievable entities due to exception." }

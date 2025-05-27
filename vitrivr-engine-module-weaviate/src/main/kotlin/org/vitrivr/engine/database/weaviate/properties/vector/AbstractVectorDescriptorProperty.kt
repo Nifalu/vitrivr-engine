@@ -18,13 +18,13 @@ abstract class AbstractVectorDescriptorProperty<D: VectorDescriptor<D, V>, V: Va
 
     override fun initialize() {
         if (!this.isInitialized()) {
-            LOGGER.error {"Named Vector ${this.name} does not exist in class ${Constants.COLLECTION_NAME}. This must be declared upfront via the config file"}
+            LOGGER.error {"Named Vector ${this.name} does not exist in class ${Constants.getCollectionName()}. This must be declared upfront via the config file"}
         }
     }
 
     override fun isInitialized(): Boolean{
         val result = connection.client.schema().classGetter()
-            .withClassName(Constants.COLLECTION_NAME)
+            .withClassName(Constants.getCollectionName())
             .run()
 
         if (isValid(result)) {
@@ -35,7 +35,7 @@ abstract class AbstractVectorDescriptorProperty<D: VectorDescriptor<D, V>, V: Va
 
     override fun get(retrievableId: UUID): D? {
         val result = this.connection.client.data().objectsGetter()
-            .withClassName(Constants.COLLECTION_NAME)
+            .withClassName(Constants.getCollectionName())
             .withID(retrievableId.toString())
             .withVector()
             .run()
@@ -61,7 +61,7 @@ abstract class AbstractVectorDescriptorProperty<D: VectorDescriptor<D, V>, V: Va
             .build()
 
         val result = this.connection.client.graphQL().get()
-            .withClassName(Constants.COLLECTION_NAME)
+            .withClassName(Constants.getCollectionName())
             .withFields(
                 Field.builder().name("_additional").fields(
                     Field.builder().name("id").build(),
@@ -81,7 +81,7 @@ abstract class AbstractVectorDescriptorProperty<D: VectorDescriptor<D, V>, V: Va
 
     override fun getAll() : Sequence<D> {
         val result = this.connection.client.graphQL().get()
-            .withClassName(Constants.COLLECTION_NAME)
+            .withClassName(Constants.getCollectionName())
             .withFields(
                 Field.builder().name("_additional").fields(
                     Field.builder().name("id").build(),
@@ -100,7 +100,7 @@ abstract class AbstractVectorDescriptorProperty<D: VectorDescriptor<D, V>, V: Va
 
     override fun isSet(retrievableId: UUID): Boolean {
         val result = this.connection.client.data().objectsGetter()
-            .withClassName(Constants.COLLECTION_NAME)
+            .withClassName(Constants.getCollectionName())
             .withID(retrievableId.toString())
             .withVector()
             .run()
@@ -113,7 +113,7 @@ abstract class AbstractVectorDescriptorProperty<D: VectorDescriptor<D, V>, V: Va
 
     override fun unset(descriptor: D): Boolean {
         val result = this.connection.client.data().objectsGetter()
-            .withClassName(Constants.COLLECTION_NAME)
+            .withClassName(Constants.getCollectionName())
             .withID(descriptor.retrievableId.toString())
             .withVector()
             .run()
@@ -125,7 +125,7 @@ abstract class AbstractVectorDescriptorProperty<D: VectorDescriptor<D, V>, V: Va
         val wObject = result.result.firstOrNull() ?: return true // nothing to delete
         wObject.vectors.remove(this.name) // remove the property
         val update = this.connection.client.data().updater() // replace the entire object.
-            .withClassName(Constants.COLLECTION_NAME)
+            .withClassName(Constants.getCollectionName())
             .withID(descriptor.retrievableId.toString())
             .withProperties(wObject.properties)
             .withVectors(wObject.vectors)

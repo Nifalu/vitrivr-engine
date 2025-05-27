@@ -9,5 +9,11 @@ const val RETRIEVABLE_TYPE_PROPERTY_NAME = "type"
 const val RETRIEVABLE_TYPE_PROPERTY_DESCRIPTION = "The type of the retrievable entity."
 
 object Constants {
-    var COLLECTION_NAME = "Weaviate"
+    private var COLLECTION_NAME = "NotSet"
+    fun getCollectionName(): String {
+        return COLLECTION_NAME
+    }
+    fun setCollectionName(name: String) {
+        COLLECTION_NAME = name
+    }
 }

@@ -23,12 +23,12 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
         /* Check if the predicate already exists as property*/
         val predicate = relationship.predicate.firstLowerCase()
         val result = connection.client.data().referenceCreator()
-            .withClassName(Constants.COLLECTION_NAME)
+            .withClassName(Constants.getCollectionName())
             .withID(relationship.subjectId.toString())
             .withReferenceProperty(predicate)
             .withReference(
                 connection.client.data().referencePayloadBuilder()
-                    .withClassName(Constants.COLLECTION_NAME)
+                    .withClassName(Constants.getCollectionName())
                     .withID(relationship.objectId.toString())
                     .payload()
             )
@@ -42,33 +42,33 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
         * we need to create the reference property first. This is kinda ugly, but more efficient
         * than checking for existence every time again */
         if (result.error.messages.any {it.message.contains(predicate)}) {
-            LOGGER.info { "Creating new reference property $predicate for collection $Constants.COLLECTION_NAME" }
+            LOGGER.info { "Creating new reference property $predicate for collection $Constants.getCollectionName()" }
             val property = Property.builder()
                 .name(predicate)
                 .description("Reference property for $predicate")
-                .dataType(listOf(Constants.COLLECTION_NAME))
+                .dataType(listOf(Constants.getCollectionName()))
                 .build()
 
             /* Create the reference property */
             val propertyResult = connection.client.schema().propertyCreator()
-                .withClassName(Constants.COLLECTION_NAME)
+                .withClassName(Constants.getCollectionName())
                 .withProperty(property)
                 .run()
 
             if (propertyResult.hasErrors()) {
-                LOGGER.error { "Failed to create reference property $predicate for collection $Constants.COLLECTION_NAME due to error.\n" +
+                LOGGER.error { "Failed to create reference property $predicate for collection $Constants.getCollectionName() due to error.\n" +
                         propertyResult.error }
                 return false
             }
 
             /* Retry the reference creation */
             val retryResult = connection.client.data().referenceCreator()
-                .withClassName(Constants.COLLECTION_NAME)
+                .withClassName(Constants.getCollectionName())
                 .withID(relationship.subjectId.toString())
                 .withReferenceProperty(predicate)
                 .withReference(
                     connection.client.data().referencePayloadBuilder()
-                        .withClassName(Constants.COLLECTION_NAME)
+                        .withClassName(Constants.getCollectionName())
                         .withID(relationship.objectId.toString())
                         .payload()
                 )
@@ -119,12 +119,12 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
     override fun disconnect(relationship: Relationship): Boolean {
         val predicate = relationship.predicate.firstLowerCase()
         val result = connection.client.data().referenceDeleter()
-            .withClassName(Constants.COLLECTION_NAME)
+            .withClassName(Constants.getCollectionName())
             .withID(relationship.subjectId.toString())
             .withReferenceProperty(predicate)
             .withReference(
                 connection.client.data().referencePayloadBuilder()
-                    .withClassName(Constants.COLLECTION_NAME)
+                    .withClassName(Constants.getCollectionName())
                     .withID(relationship.objectId.toString())
                     .payload()
             )
@@ -164,7 +164,7 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
      */
     override fun add(item: Retrievable): Boolean {
         val result = connection.client.data().creator()
-            .withClassName(Constants.COLLECTION_NAME)
+            .withClassName(Constants.getCollectionName())
             .withID(item.id.toString())
             .withProperties(
                 mapOf(
@@ -190,7 +190,7 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
         val batcher = connection.client.batch().objectsBatcher()
         items.forEach { item ->
             val wObject = WeaviateObject.builder()
-                .className(Constants.COLLECTION_NAME)
+                .className(Constants.getCollectionName())
                 .id(item.id.toString())
                 .properties(
                     mapOf(
@@ -221,7 +221,7 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
     override fun update(item: Retrievable): Boolean {
         val result = connection.client.data().updater()
             .withMerge() // Keep existing properties
-            .withClassName(Constants.COLLECTION_NAME)
+            .withClassName(Constants.getCollectionName())
             .withID(item.id.toString())
             .withProperties(
                 mapOf(
@@ -244,7 +244,7 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
      */
     override fun delete(item: Retrievable): Boolean {
         val result = connection.client.data().deleter()
-            .withClassName(Constants.COLLECTION_NAME)
+            .withClassName(Constants.getCollectionName())
             .withID(item.id.toString())
             .run()
         if (result.hasErrors()) {
@@ -271,7 +271,7 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
             .build()
 
         val result = connection.client.batch().objectsBatchDeleter()
-            .withClassName(Constants.COLLECTION_NAME)
+            .withClassName(Constants.getCollectionName())
             .withWhere(whereFilter)
             .run()
 
