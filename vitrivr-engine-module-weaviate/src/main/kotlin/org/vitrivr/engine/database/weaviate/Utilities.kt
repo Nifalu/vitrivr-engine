@@ -2,24 +2,36 @@ package org.vitrivr.engine.database.weaviate
 import org.vitrivr.engine.core.model.descriptor.Descriptor
 import org.vitrivr.engine.core.model.descriptor.scalar.*
 import org.vitrivr.engine.core.model.metamodel.Schema
+import org.vitrivr.engine.core.model.descriptor.struct.StructDescriptor
+import org.vitrivr.engine.core.model.descriptor.vector.FloatVectorDescriptor
+import org.vitrivr.engine.core.model.query.basics.ComparisonOperator
+import org.vitrivr.engine.database.weaviate.properties.AbstractDescriptorProperty
+import org.vitrivr.engine.database.weaviate.properties.StructDescriptorProperty
+import org.vitrivr.engine.database.weaviate.properties.scalar.BooleanDescriptorProperty
+import org.vitrivr.engine.database.weaviate.properties.scalar.TextDescriptorProperty
+import org.vitrivr.engine.database.weaviate.properties.vector.FloatVectorDescriptorProperty
+import org.vitrivr.engine.core.model.relationship.Relationship
 
 import io.weaviate.client.WeaviateClient
 import io.weaviate.client.v1.data.model.WeaviateObject
 import io.weaviate.client.v1.graphql.model.GraphQLResponse
 import io.weaviate.client.base.Result
 import io.weaviate.client.v1.filters.Operator
-import org.vitrivr.engine.core.model.descriptor.vector.FloatVectorDescriptor
-import org.vitrivr.engine.core.model.query.basics.ComparisonOperator
-import org.vitrivr.engine.database.weaviate.properties.AbstractDescriptorProperty
-import org.vitrivr.engine.database.weaviate.properties.scalar.BooleanDescriptorProperty
-import org.vitrivr.engine.database.weaviate.properties.vector.FloatVectorDescriptorProperty
-import java.util.logging.Logger
 
-
+/**
+ * Converts a [Schema.Field] to an [AbstractDescriptorProperty] that supports the [Descriptor] type.
+ *
+ * Note: As this implementation is unfinished, it currently only supports a limited set of descriptor types.
+ *
+ * @return [AbstractDescriptorProperty]
+ * @throws [IllegalArgumentException] if the [Descriptor] type is not supported.
+ */
 @Suppress("UNCHECKED_CAST")
 internal fun <D: Descriptor<*>> Schema.Field<*, D>.toDescriptorProperty() = when (this.analyser.prototype(this)) {
     is BooleanDescriptor -> BooleanDescriptorProperty(this as Schema.Field<*, BooleanDescriptor>, this.connection as WeaviateConnection)
     is FloatVectorDescriptor -> FloatVectorDescriptorProperty(this as Schema.Field<*, FloatVectorDescriptor>, this.connection as WeaviateConnection)
+    is StringDescriptor -> TextDescriptorProperty(this as Schema.Field<*, TextDescriptor>, this.connection as WeaviateConnection)
+    is StructDescriptor<*> -> StructDescriptorProperty(this as Schema.Field<*, StructDescriptor<*>>, this.connection as WeaviateConnection)
     /*
     is ByteDescriptor -> ByteProperty(this as Schema.Field<*, ByteDescriptor>, this.connection as WeaviateConnection)
     is DoubleDescriptor -> DoubleProperty(this as Schema.Field<*, DoubleDescriptor>, this.connection as WeaviateConnection)
@@ -27,17 +39,16 @@ internal fun <D: Descriptor<*>> Schema.Field<*, D>.toDescriptorProperty() = when
     is IntDescriptor -> IntProperty(this as Schema.Field<*, IntDescriptor>, this.connection as WeaviateConnection)
     is LongDescriptor -> LongProperty(this as Schema.Field<*, LongDescriptor>, this.connection as WeaviateConnection)
     is ShortDescriptor -> ShortProperty(this as Schema.Field<*, ShortDescriptor>, this.connection as WeaviateConnection)
-    is StringDescriptor -> StringProperty(this as Schema.Field<*, StringDescriptor>, this.connection as WeaviateConnection)
     is TextDescriptor -> TextProperty(this as Schema.Field<*, TextDescriptor>, this.connection as WeaviateConnection)
-    is StructDescriptor<*> -> StructDescriptorTable(this as Schema.Field<*, StructDescriptor<*>>, this.connection as WeaviateConnection)
      */
     else -> throw IllegalArgumentException("Unsupported descriptor type: ${this.analyser.prototype(this)}")
 } as AbstractDescriptorProperty<D>
 
 /**
  * Extension function that converts a [Result] of type [GraphQLResponse] to a sequence of [WeaviateObject].
- * 
- * The [GraphQLResponse] is in JSON format which this function parses.
+ *
+ * This function is used to parse the [GraphQLResponse]. Since the response has a JSON structure, this can probably
+ * also be done using a JSON parser.
  */
 internal fun <T>  Result<GraphQLResponse<T>?>.toWeaviateObject(): Sequence<WeaviateObject>? {
     
@@ -104,12 +115,20 @@ internal fun <T>  Result<GraphQLResponse<T>?>.toWeaviateObject(): Sequence<Weavi
     }
 }
 
-
+/**
+ * Helper function to log a warning and skip an item in the GraphQL response.
+ */
 private fun warnAndSkip(item: Any?): Nothing? {
     LOGGER.warn { "GraphQLResponse Parser found an unexpected item: ${item.toString()}" }
     return null
 }
 
+/**
+ * Extension function that retrieves the properties representing a [Relationship].
+ *
+ * Since [Relationship]'s are stored as simple properties, this function searches for properties
+ * with the data type matching the collection name which references to the same collection.
+ */
 internal fun WeaviateClient.findPredicateProperties(): List<String> {
     this.schema().classGetter().withClassName(Constants.getCollectionName()).run().let { result ->
 
@@ -129,6 +148,9 @@ internal fun WeaviateClient.findPredicateProperties(): List<String> {
     }
 }
 
+/**
+ * Extension function that converts a [ComparisonOperator] to a Weaviate [Operator].
+ */
 internal fun ComparisonOperator.toWeaviateOperator(): String = when (this) {
     ComparisonOperator.EQ -> Operator.Equal
     ComparisonOperator.NEQ -> Operator.NotEqual

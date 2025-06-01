@@ -7,23 +7,32 @@ import org.vitrivr.engine.database.weaviate.LOGGER
 import org.vitrivr.engine.database.weaviate.WeaviateConnection
 import org.vitrivr.engine.database.weaviate.properties.AbstractDescriptorProperty
 import org.vitrivr.engine.database.weaviate.toDescriptorProperty
+import io.weaviate.client.v1.schema.model.Property
 
+
+
+/**
+ * A [DescriptorInitializer] implementation for handling [Descriptor]s in Weaviate.
+ *
+ * @author Nico Bachmann
+ */
 open class WeaviateDescriptorInitializer<D : Descriptor<*>>(
     final override val field: Schema.Field<*, D>,
     protected val connection: WeaviateConnection
 ) : DescriptorInitializer<D> {
 
 
+    /** The [AbstractDescriptorProperty] that this initializer uses to interact with Weaviate. */
     private val descriptorProperty: AbstractDescriptorProperty<D> = this.field.toDescriptorProperty()
 
     /**
-     * Add the property to the Weaviate class.
+     * Adds the [Property] for this [Descriptor] to Weaviate.
      */
     override fun initialize() = this.descriptorProperty.initialize()
 
 
     /**
-     * Nothing to do here as we don't have separate tables in Weaviate for the descriptors.
+     * De-initialization of Weaviate properties is not supported.
      */
     override fun deinitialize() {
         LOGGER.warn {
@@ -33,12 +42,14 @@ open class WeaviateDescriptorInitializer<D : Descriptor<*>>(
     }
 
     /**
-     * Weaviate is always initialized.
+     * Checks if the descriptor property is initialized in Weaviate.
+     *
+     * @return `true` if the property is initialized, `false` otherwise.
      */
     override fun isInitialized(): Boolean = this.descriptorProperty.isInitialized()
 
     /**
-     * Nothing to do here as we don't have separate tables in Weaviate for the descriptors.
+     * Truncation of Weaviate properties is not supported.
      */
     override fun truncate() {
         LOGGER.warn {

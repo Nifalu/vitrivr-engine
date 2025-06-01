@@ -7,8 +7,9 @@ import io.weaviate.client.v1.graphql.query.argument.WhereArgument
 import io.weaviate.client.v1.graphql.query.fields.Field
 import io.weaviate.client.v1.schema.model.Property
 import org.vitrivr.engine.core.model.descriptor.scalar.ScalarDescriptor
-import org.vitrivr.engine.core.model.query.bool.SimpleBooleanQuery
 import org.vitrivr.engine.core.model.retrievable.Retrieved
+import org.vitrivr.engine.core.model.retrievable.RetrievableId
+import org.vitrivr.engine.core.model.descriptor.Descriptor
 import org.vitrivr.engine.core.model.types.Value
 import org.vitrivr.engine.database.weaviate.*
 import org.vitrivr.engine.database.weaviate.LOGGER
@@ -16,10 +17,19 @@ import org.vitrivr.engine.database.weaviate.properties.AbstractDescriptorPropert
 import org.vitrivr.engine.database.weaviate.toWeaviateObject
 import java.util.*
 
+/**
+ * An abstract implementation of a [Property] for [ScalarDescriptor]s in Weaviate.
+ *
+ * @author Nico Bachmann
+ */
 sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Value.ScalarValue<S>, S>(val connection: WeaviateConnection): AbstractDescriptorProperty<D>() {
 
+    /** The [Property] for this [ScalarDescriptor] */
     abstract val property: Property
 
+    /**
+     * Initializes the [Property] for this [ScalarDescriptor] in Weaviate.
+     */
     override fun initialize() {
         val result = connection.client.schema().propertyCreator()
             .withClassName(Constants.getCollectionName())
@@ -31,6 +41,11 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
         }
     }
 
+    /**
+     * Checks if the [Property] is initialized in Weaviate.
+     *
+     * @return True if the property is initialized, false otherwise.
+     */
     override fun isInitialized(): Boolean {
         this.connection.client.schema().classGetter().withClassName(Constants.getCollectionName()).run().let { result ->
             if (isValid(result)) {
@@ -40,7 +55,12 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
         }
     }
 
-
+    /**
+     * Returns the [ScalarDescriptor] for the given [retrievableId].
+     *
+     * @param retrievableId The [RetrievableId] of the [ScalarDescriptor] to retrieve.
+     * @return The [ScalarDescriptor] or null if not found.
+     */
     override fun get(retrievableId: UUID): D? {
         val result = this.connection.client.data().objectsGetter()
             .withClassName(Constants.getCollectionName())
@@ -56,7 +76,12 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
         return null
     }
 
-
+    /**
+     * Returns all [ScalarDescriptor]s of type [D] for the given [retrievableIds].
+     *
+     * @param retrievableIds The [RetrievableId]s of the [ScalarDescriptor]s to retrieve.
+     * @return A [Sequence] of [ScalarDescriptor]s.
+     */
     override fun getAll(retrievableIds: Iterable<UUID>): Sequence<D> {
         val retrievableIdsArray = retrievableIds.map { it.toString() }.toTypedArray()
         val idFilter = WhereFilter.builder()
@@ -81,6 +106,9 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
         }
     }
 
+    /**
+     * Returns all [ScalarDescriptor]s of type [D] in the collection.
+     */
     override fun getAll() : Sequence<D> {
         val result = this.connection.client.graphQL().get()
             .withClassName(Constants.getCollectionName())
@@ -97,6 +125,9 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
         }
     }
 
+    /**
+     * Convert a [WeaviateObject] to a [Sequence] of [ScalarDescriptor]s of type [D].
+     */
     override fun wObjectsToDescriptors(weaviateObjects: Sequence<WeaviateObject>): Sequence<D> = weaviateObjects.mapNotNull { wObj ->
             val value = wObj.properties[this.property.name] ?: return@mapNotNull null
             val id = UUID.fromString(wObj.id)
@@ -105,7 +136,10 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
 
 
     /**
-     * Update the given descriptor in the corresponding retrievable in Weaviate.
+     * Set the [Property] for the given [Descriptor] in Weaviate.
+     *
+     * @param descriptor The [Descriptor] to set.
+     * @return True if the operation was successful, false otherwise.
      */
     override fun set(descriptor: D): Boolean {
         val result = this.connection.client.data().updater()
@@ -128,6 +162,12 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
         return result.result
     }
 
+    /**
+     * Checks if the [Property] is set for the given [retrievableId].
+     *
+     * @param retrievableId The [RetrievableId] to check.
+     * @return True if the [Property] is set, false otherwise.
+     */
     override fun isSet(retrievableId: UUID): Boolean {
         /* get the retrievable */
         val result = this.connection.client.data().objectsGetter()
@@ -145,7 +185,10 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
 
 
     /**
-     * Delete the given descriptor from the corresponding retrievable in Weaviate.
+     * Delete the [Property] for the given [Descriptor] in Weaviate.
+     *
+     * @param descriptor The [Descriptor] to unset.
+     * @return True if the operation was successful, false otherwise.
      */
     override fun unset(descriptor: D): Boolean {
         val result = this.connection.client.data().objectsGetter()
@@ -176,39 +219,57 @@ sealed class AbstractScalarDescriptorProperty<D: ScalarDescriptor<D, V>, V : Val
         return true
     }
 
+    /**
+     * Queries for [Retrieved]s based on the given [org.vitrivr.engine.core.model.query.Query].
+     *
+     * @param query The [org.vitrivr.engine.core.model.query.Query] to execute.
+     * @return A [Sequence] of [Retrieved] objects.
+     */
     override fun queryRetrievable(query: org.vitrivr.engine.core.model.query.Query): Sequence<Retrieved> = wObjectsToRetrieved(query(query))
 
+    /**
+     * Queries for [ScalarDescriptor]s of type [D] based on the given [org.vitrivr.engine.core.model.query.Query].
+     *
+     * @param query The [org.vitrivr.engine.core.model.query.Query] to execute.
+     * @return A [Sequence] of [ScalarDescriptor]s of type [D].
+     */
     override fun queryProperty(query: org.vitrivr.engine.core.model.query.Query): Sequence<D> = wObjectsToDescriptors(query(query))
 
-    private fun query(query: org.vitrivr.engine.core.model.query.Query): Sequence<WeaviateObject> = when(query) {
-        is SimpleBooleanQuery<*> -> {
-            val whereFilter = this.buildWhereFilter(query)
+    /**
+     * Queries for [WeaviateObject]s based on the given [org.vitrivr.engine.core.model.query.Query].
+     *
+     * @param query The [org.vitrivr.engine.core.model.query.Query] to execute.
+     * @return A [Sequence] of [WeaviateObject]s that match the query.
+     */
+    private fun query(query: org.vitrivr.engine.core.model.query.Query): Sequence<WeaviateObject>  {
+        val whereFilter = this.buildWhereFilter(query)
 
-            val result = this.connection.client.graphQL().get()
-                .withClassName(Constants.getCollectionName())
-                .withFields(
-                    Field.builder().name("_additional").fields(
-                        Field.builder().name("id").build()).build(),
-                    Field.builder().name(this.property.name).build())
-                .withWhere(WhereArgument.builder().filter(whereFilter).build())
-                .run()
+        val result = this.connection.client.graphQL().get()
+            .withClassName(Constants.getCollectionName())
+            .withFields(
+                Field.builder().name("_additional").fields(
+                    Field.builder().name("id").build()).build(),
+                Field.builder().name(this.property.name).build())
+            .withWhere(WhereArgument.builder().filter(whereFilter).build())
+            .run()
 
-            if (result.hasErrors()) {
-                LOGGER.error { "Failed to fetch descriptors due to error." }
-                emptySequence<WeaviateObject>()
-            }
-            if (result.result == null) {
-                LOGGER.warn { "No descriptors found" }
-                emptySequence<WeaviateObject>()
-            }
-            result.toWeaviateObject() ?: emptySequence()
+        if (result.hasErrors()) {
+            LOGGER.error { "Failed to fetch descriptors due to error." }
+            emptySequence<WeaviateObject>()
         }
-        else -> run {
-            LOGGER.error { "Unsupported query type: ${query::class.simpleName}" }
-            emptySequence()
+        if (result.result == null) {
+            LOGGER.warn { "No descriptors found" }
+            emptySequence<WeaviateObject>()
         }
+        return result.toWeaviateObject() ?: emptySequence()
     }
 
-    protected abstract fun buildWhereFilter(query: SimpleBooleanQuery<*>): WhereFilter
+    /**
+     * Builds the [WhereFilter] for the given [org.vitrivr.engine.core.model.query.Query].
+     *
+     * @param query The [org.vitrivr.engine.core.model.query.Query] to build the filter for.
+     * @return A [WhereFilter] that can be used in the Weaviate query.
+     */
+    protected abstract fun buildWhereFilter(query: org.vitrivr.engine.core.model.query.Query): WhereFilter
 
 }

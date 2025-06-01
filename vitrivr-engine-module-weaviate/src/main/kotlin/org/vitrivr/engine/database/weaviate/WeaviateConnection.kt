@@ -5,6 +5,9 @@ import io.github.oshai.kotlinlogging.KotlinLogging.logger
 import io.weaviate.client.WeaviateClient
 import io.weaviate.client.v1.misc.model.InvertedIndexConfig
 import io.weaviate.client.v1.misc.model.VectorIndexConfig
+import io.weaviate.client.v1.misc.model.PQConfig
+import io.weaviate.client.v1.misc.model.ShardingConfig
+import io.weaviate.client.v1.schema.model.DataType
 import io.weaviate.client.v1.schema.model.Property
 import io.weaviate.client.v1.schema.model.WeaviateClass
 import org.vitrivr.engine.core.database.AbstractConnection
@@ -32,7 +35,7 @@ class WeaviateConnection(provider: WeaviateConnectionProvider, className: String
             LOGGER.error { "Error checking for existence of collection '$className': ${exists.error}" }
         }
         if (exists.result) {
-            LOGGER.info { "Collection '$className' already exists." }
+            LOGGER.info { "Found and loaded existing collection: $className" }
         } else {
             /* Index for the retrievables in the collection */
             val invertedIndexConfig = InvertedIndexConfig.builder()
@@ -41,12 +44,19 @@ class WeaviateConnection(provider: WeaviateConnectionProvider, className: String
                 .build()
 
             /* IndexConfig for named Vectors */
-            val hnswConfig = VectorIndexConfig.builder()
-                .distance("cosine")
+            val hnswConfigBuilder = VectorIndexConfig.builder()
+                .distance(DISTANCE)
                 .efConstruction(128)
                 .maxConnections(64)
                 .ef(64)
-                .build()
+
+            val pqConfigBuilder = PQConfig.builder()
+                .enabled(true)
+                .segments(128)
+                .centroids(256)
+                .trainingLimit(250000)
+
+            hnswConfigBuilder.pq(pqConfigBuilder.build())
 
             /* Vector spaces need to be defined up front. So here we define a named vector for each vector descriptor */
             val vectorConfig = mutableMapOf<String, WeaviateClass.VectorConfig>()
@@ -54,10 +64,15 @@ class WeaviateConnection(provider: WeaviateConnectionProvider, className: String
                 val name = "${DESCRIPTOR_ENTITY_PREFIX}_${vectorName}"
                 vectorConfig[name] = WeaviateClass.VectorConfig.builder()
                     .vectorIndexType("hnsw")
-                    .vectorIndexConfig(hnswConfig)
+                    .vectorIndexConfig(hnswConfigBuilder.build())
                     .vectorizer(noVectorizer())
                     .build()
             }
+
+            val shardingConfig = ShardingConfig.builder()
+                .actualCount(3)
+                .desiredCount(3)
+                .build()
 
             /* Put everything together */
             val wClass = WeaviateClass.builder()
@@ -65,11 +80,12 @@ class WeaviateConnection(provider: WeaviateConnectionProvider, className: String
                 .description(RETRIEVABLE_ENTITY_DESCRIPTION)
                 .invertedIndexConfig(invertedIndexConfig)
                 .vectorConfig(vectorConfig)
+                .shardingConfig(shardingConfig)
                 .properties(listOf(
                     Property.builder()
                         .name(RETRIEVABLE_TYPE_PROPERTY_NAME)
                         .description(RETRIEVABLE_TYPE_PROPERTY_DESCRIPTION)
-                        .dataType(listOf("text"))
+                        .dataType(listOf(DataType.TEXT))
                         .build()
                 ))
                 .build()
@@ -82,10 +98,6 @@ class WeaviateConnection(provider: WeaviateConnectionProvider, className: String
                     LOGGER.info { "Collection '$className' created successfully." }
                 }
             }
-
-            LOGGER.info { "WeaviateConnection initialized with class name '$className' and named vectors: $namedVectors" }
-            LOGGER.warn { "Constants .COLLECTION_NAME has been set to '${Constants.getCollectionName()}'"}
-
         }
     }
 

@@ -1,6 +1,6 @@
 {
   "schemas": {
-    "weaviate": {
+    "vitrivr": {
       "connection": {
         "database": "WeaviateConnectionProvider",
         "parameters": {

@@ -13,6 +13,11 @@ import org.vitrivr.engine.database.weaviate.*
 import org.vitrivr.engine.database.weaviate.LOGGER
 import java.util.*
 
+/**
+ * A [RetrievableReader] implementation for Weaviate.
+ *
+ * @author Nico Bachmann
+ */
 class WeaviateRetrievableReader(override val connection: WeaviateConnection): RetrievableReader {
 
     /**

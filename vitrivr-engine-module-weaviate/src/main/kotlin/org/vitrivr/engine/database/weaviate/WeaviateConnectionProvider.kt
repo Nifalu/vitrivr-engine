@@ -15,6 +15,7 @@ import org.vitrivr.engine.core.model.descriptor.struct.metadata.TemporalMetadata
 import org.vitrivr.engine.core.model.descriptor.struct.metadata.source.FileSourceMetadataDescriptor
 import org.vitrivr.engine.core.model.descriptor.struct.metadata.source.VideoSourceMetadataDescriptor
 import org.vitrivr.engine.core.model.descriptor.vector.*
+import org.vitrivr.engine.core.model.metamodel.Schema
 import org.vitrivr.engine.database.weaviate.descriptor.providers.ScalarDescriptorProvider
 import org.vitrivr.engine.database.weaviate.descriptor.providers.StructDescriptorProvider
 import org.vitrivr.engine.database.weaviate.descriptor.providers.VectorDescriptorProvider
@@ -30,9 +31,12 @@ class WeaviateConnectionProvider: AbstractConnectionProvider() {
 
     companion object {
 
+        /** Name of the scheme parameter */
         const val PARAMETER_NAME_SCHEME = "scheme"
 
+        /** Default value of the scheme parameter */
         const val PARAMETER_DEFAULT_SCHEME = "http"
+
         /** Name of the host parameter. */
         const val PARAMETER_NAME_HOST = "host"
 
@@ -45,6 +49,7 @@ class WeaviateConnectionProvider: AbstractConnectionProvider() {
         /** Name of the host parameter. */
         const val PARAMETER_DEFAULT_PORT = "5432"
 
+        /** Name of the 'named vetors' parameter */
         const val PARAMETERS_NAME_NAMED_VECTORS = "vectors"
 
     }
@@ -86,6 +91,15 @@ class WeaviateConnectionProvider: AbstractConnectionProvider() {
         this.register(AnyMapStructDescriptor::class, StructDescriptorProvider)
     }
 
+    /**
+     * Opens a new [WeaviateConnection] for the given [Schema]
+     *
+     * Note: Weaviate wants all named vectors (vector descriptors) declared upfront.
+     * Declare them in the parameters map under the key [PARAMETERS_NAME_NAMED_VECTORS].
+     *
+     * @param schemaName The name of the schema to connect to.
+     * @param parameters A map of parameters for the connection
+     */
     override fun openConnection(schemaName: String, parameters: Map<String, String>): Connection {
         val scheme = parameters.getOrDefault(PARAMETER_NAME_SCHEME, PARAMETER_DEFAULT_SCHEME)
         val host = parameters.getOrDefault(PARAMETER_NAME_HOST, PARAMETER_DEFAULT_HOST)
@@ -93,8 +107,6 @@ class WeaviateConnectionProvider: AbstractConnectionProvider() {
         val url = "$host:$port"
 
         val namedVectors = (parameters[PARAMETERS_NAME_NAMED_VECTORS]?: "").split(",").map { it.trim() }
-        LOGGER.warn { "Using named vectors: $namedVectors" }
-
         val config = Config(scheme, url)
         val db = WeaviateClient(config)
 

@@ -10,6 +10,11 @@ import org.vitrivr.engine.core.model.retrievable.Retrievable
 import org.vitrivr.engine.database.weaviate.*
 import org.vitrivr.engine.database.weaviate.LOGGER
 
+/**
+ * A [RetrievableWriter] implementation for Weaviate.
+ *
+ * @author Nico Bachmann
+ */
 internal class WeaviateRetrievableWriter(override val connection: WeaviateConnection) : RetrievableWriter {
 
     /**
@@ -38,9 +43,11 @@ internal class WeaviateRetrievableWriter(override val connection: WeaviateConnec
             return true
         }
 
-        /* if the reference property (predicate) was never seen before, the above will fail.
-        * we need to create the reference property first. This is kinda ugly, but more efficient
-        * than checking for existence every time again */
+        /*
+         * if the reference property (predicate) was never seen before, the above will fail.
+         * we need to create the reference property first. This is kinda ugly, but more efficient
+         * than checking for existence every time again (two requests instead of one).
+         */
         if (result.error.messages.any {it.message.contains(predicate)}) {
             LOGGER.info { "Creating new reference property $predicate for collection $Constants.getCollectionName()" }
             val property = Property.builder()
